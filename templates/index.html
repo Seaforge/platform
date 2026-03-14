@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SeaForge — Maritime Intelligence</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, 'Segoe UI', sans-serif; background: #0a0e14; color: #c5cdd9; }
+
+        /* ── Navigation ── */
+        .top-bar { height: 52px; background: #111820; display: flex; align-items: center; padding: 0 16px; gap: 8px; border-bottom: 1px solid #1e2a3a; overflow-x: auto; }
+        .top-bar .brand { font-size: 14px; color: #4fc3f7; font-weight: 600; white-space: nowrap; margin-right: 8px; cursor: pointer; }
+        .top-bar .brand span { color: #78909c; font-weight: 400; font-size: 11px; }
+        .top-bar .sep { width: 1px; height: 28px; background: #1e2a3a; flex-shrink: 0; }
+        .top-bar button { background: #1a2332; color: #b0bec5; border: 1px solid #2a3a4a; padding: 5px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; white-space: nowrap; }
+        .top-bar button:hover, .top-bar button.active { background: #1565c0; color: white; border-color: #1565c0; }
+        .nav-group { display: flex; gap: 4px; align-items: center; }
+        .nav-label { font-size: 9px; text-transform: uppercase; color: #546e7a; letter-spacing: 1px; margin-right: 4px; }
+
+        /* ── Views ── */
+        .view { display: none; height: calc(100vh - 52px); }
+        .view.active { display: block; }
+        #map { height: 100%; width: 100%; }
+
+        /* ── Dashboard view ── */
+        .dashboard { padding: 20px; overflow-y: auto; height: 100%; }
+        .dashboard h2 { color: #4fc3f7; margin-bottom: 16px; font-size: 18px; }
+        .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+        .card { background: #111820; border: 1px solid #1e2a3a; border-radius: 8px; padding: 16px; }
+        .card h3 { font-size: 13px; color: #4fc3f7; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
+        .card .stat { font-size: 28px; font-weight: 700; color: #e0e6ed; }
+        .card .stat-label { font-size: 11px; color: #78909c; margin-top: 4px; }
+        .card .status-green { color: #66bb6a; }
+        .card .status-amber { color: #ffa726; }
+        .card .status-red { color: #ef5350; }
+        .quick-log { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+        .quick-log button { background: #1a2332; color: #b0bec5; border: 1px solid #2a3a4a; padding: 8px 14px; border-radius: 6px; cursor: pointer; font-size: 12px; }
+        .quick-log button:hover { background: #1565c0; color: white; }
+
+        /* ── Form elements ── */
+        .form-row { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; }
+        .form-row label { font-size: 11px; color: #78909c; min-width: 80px; }
+        .form-row input, .form-row select, .form-row textarea { background: #1a2332; color: #e0e6ed; border: 1px solid #2a3a4a; padding: 6px 10px; border-radius: 4px; font-size: 12px; flex: 1; }
+        .form-row textarea { min-height: 60px; resize: vertical; }
+        .btn { background: #1565c0; color: white; border: none; padding: 6px 14px; border-radius: 4px; cursor: pointer; font-size: 12px; }
+        .btn:hover { background: #1976d2; }
+        .btn-outline { background: transparent; color: #4fc3f7; border: 1px solid #2a3a4a; padding: 6px 14px; border-radius: 4px; cursor: pointer; font-size: 12px; }
+
+        /* ── List items ── */
+        .list-item { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid #1e2a3a; }
+        .list-item:last-child { border-bottom: none; }
+        .list-item .title { color: #e0e6ed; font-size: 13px; flex: 1; }
+        .list-item .meta { color: #78909c; font-size: 11px; }
+        .badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 10px; font-weight: 600; }
+        .badge-green { background: rgba(102,187,106,0.15); color: #66bb6a; }
+        .badge-amber { background: rgba(255,167,38,0.15); color: #ffa726; }
+        .badge-red { background: rgba(239,83,80,0.15); color: #ef5350; }
+        .badge-blue { background: rgba(79,195,247,0.15); color: #4fc3f7; }
+
+        /* ── Map panels (from Flyntrea) ── */
+        .panel { position: absolute; z-index: 1000; background: rgba(17,24,32,0.94); border: 1px solid #1e2a3a; border-radius: 8px; padding: 12px 16px; backdrop-filter: blur(8px); font-size: 12px; max-height: 70vh; overflow-y: auto; }
+        .panel h3 { font-size: 11px; text-transform: uppercase; color: #4fc3f7; margin-bottom: 8px; letter-spacing: 1px; }
+        .panel label { display: flex; align-items: center; gap: 8px; font-size: 12px; padding: 3px 0; cursor: pointer; color: #b0bec5; }
+        .panel label:hover { color: #e0e6ed; }
+        .panel input[type="checkbox"] { accent-color: #4fc3f7; }
+        .section { margin-top: 8px; padding-top: 8px; border-top: 1px solid #1e2a3a; }
+        .section-title { font-size: 10px; text-transform: uppercase; color: #78909c; margin-bottom: 4px; letter-spacing: 0.5px; }
+        .layer-panel { top: 62px; right: 10px; min-width: 190px; }
+        .info-panel { bottom: 20px; left: 10px; max-width: 340px; }
+        .info-panel .row { display: flex; justify-content: space-between; padding: 2px 0; gap: 12px; }
+        .info-panel .lbl { color: #78909c; white-space: nowrap; }
+        .info-panel .val { color: #e0e6ed; font-weight: 500; text-align: right; }
+        .colregs-panel { top: 62px; left: 10px; max-width: 380px; display: none; }
+        .colregs-panel .advisory { margin: 6px 0; padding: 8px; border-radius: 6px; border-left: 3px solid; }
+        .advisory.green { border-color: #66bb6a; background: rgba(102,187,106,0.08); }
+        .advisory.yellow { border-color: #ffa726; background: rgba(255,167,38,0.08); }
+        .advisory.red { border-color: #ef5350; background: rgba(239,83,80,0.12); }
+        .advisory .target-name { font-weight: 600; color: #e0e6ed; }
+        .advisory .situation { color: #4fc3f7; font-size: 11px; text-transform: uppercase; }
+        .advisory .action { margin-top: 4px; color: #e0e6ed; }
+        .advisory .metrics { color: #78909c; font-size: 11px; margin-top: 2px; }
+        .trainer-panel { top: 62px; left: 50%; transform: translateX(-50%); max-width: 500px; width: 90%; display: none; }
+        .trainer-panel .scenario { background: #1a2332; padding: 12px; border-radius: 6px; margin: 8px 0; font-size: 13px; color: #e0e6ed; line-height: 1.5; }
+        .trainer-panel .answer { background: #0d2818; padding: 10px; border-radius: 6px; margin: 6px 0; color: #66bb6a; display: none; }
+        .trainer-panel .rule-ref { color: #4fc3f7; font-size: 11px; }
+        .leaflet-popup-content-wrapper { background: #111820; color: #c5cdd9; border: 1px solid #1e2a3a; }
+        .leaflet-popup-tip { background: #111820; }
+
+        /* ── Vessel Sidebar ── */
+        #vesselSidebar { position: fixed; top: 52px; right: -360px; width: 340px; height: calc(100vh - 52px); background: #0d1520; border-left: 1px solid #1e2a3a; z-index: 2000; transition: right 0.28s cubic-bezier(0.4,0,0.2,1); display: flex; flex-direction: column; overflow: hidden; }
+        #vesselSidebar.open { right: 0; }
+        .vsb-header { padding: 14px 16px 10px; border-bottom: 1px solid #1e2a3a; background: #111820; flex-shrink: 0; }
+        .vsb-close { float: right; background: none; border: none; color: #546e7a; font-size: 18px; cursor: pointer; }
+        .vsb-close:hover { color: #e0e6ed; }
+        .vsb-name { font-size: 15px; font-weight: 700; color: #e0e6ed; }
+        .vsb-type { font-size: 11px; color: #78909c; text-transform: uppercase; letter-spacing: 0.5px; }
+        .vsb-body { flex: 1; overflow-y: auto; padding: 12px 16px; }
+        .vsb-section { margin-bottom: 14px; }
+        .vsb-section-title { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: #4fc3f7; margin-bottom: 6px; padding-bottom: 4px; border-bottom: 1px solid #1e2a3a; }
+        .vsb-row { display: flex; justify-content: space-between; padding: 3px 0; }
+        .vsb-lbl { color: #546e7a; font-size: 11px; }
+        .vsb-val { color: #c5cdd9; font-size: 12px; text-align: right; }
+        .vsb-val.mono { font-family: monospace; font-size: 11px; }
+        .vsb-val.highlight { color: #4fc3f7; font-weight: 600; }
+        .vsb-sog-bar { width: 100%; height: 4px; background: #1a2332; border-radius: 2px; margin: 6px 0; }
+        .vsb-sog-fill { height: 4px; background: linear-gradient(90deg, #4fc3f7, #66bb6a); border-radius: 2px; }
+        .vsb-port-list { list-style: none; }
+        .vsb-port-list li { display: flex; align-items: center; gap: 8px; padding: 4px 0; border-bottom: 1px solid #1e2a3a; }
+        .vsb-port-dot { width: 7px; height: 7px; border-radius: 50%; background: #1e2a3a; border: 2px solid #546e7a; }
+        .vsb-port-name { color: #c5cdd9; flex: 1; }
+        .vsb-port-date { color: #546e7a; font-size: 10px; }
+        .vsb-risk-badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 10px; font-weight: 600; }
+        .vsb-risk-green { background: rgba(102,187,106,0.15); color: #66bb6a; }
+        .vsb-risk-yellow { background: rgba(255,167,38,0.15); color: #ffa726; }
+        .vsb-risk-red { background: rgba(239,83,80,0.15); color: #ef5350; }
+        .vsb-colregs-box { padding: 8px 10px; border-radius: 6px; margin-top: 6px; border-left: 3px solid; }
+        .vsb-colregs-box.green { border-color: #66bb6a; background: rgba(102,187,106,0.07); }
+        .vsb-colregs-box.yellow { border-color: #ffa726; background: rgba(255,167,38,0.07); }
+        .vsb-colregs-box.red { border-color: #ef5350; background: rgba(239,83,80,0.1); }
+        .vsb-colregs-rule { font-size: 11px; color: #4fc3f7; margin-bottom: 3px; }
+        .vsb-colregs-action { font-size: 12px; color: #c5cdd9; }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <div class="top-bar">
+        <div class="brand" onclick="switchView('dashboard')">SeaForge <span>v0.1</span></div>
+        <div class="sep"></div>
+
+        <div class="nav-group">
+            <span class="nav-label">Nav</span>
+            <button id="btn-chart" class="active" onclick="switchView('chart')">Chart</button>
+            <button id="btn-colregs" onclick="toggleMapPanel('colregsPanel')">COLREGS</button>
+            <button id="btn-fleet" onclick="toggleMapPanel('fleetPanel')">Fleets</button>
+        </div>
+        <div class="sep"></div>
+
+        <div class="nav-group">
+            <span class="nav-label">Life</span>
+            <button id="btn-wellbeing" onclick="switchView('wellbeing')">Wellbeing</button>
+            <button id="btn-tasks" onclick="switchView('tasks')">Tasks</button>
+        </div>
+        <div class="sep"></div>
+
+        <div class="nav-group">
+            <span class="nav-label">Train</span>
+            <button id="btn-trainer" onclick="toggleMapPanel('trainerPanel')">Lights</button>
+            <button id="btn-drills" onclick="switchView('drills')">Drills</button>
+        </div>
+        <div class="sep"></div>
+
+        <button id="btn-anchor" onclick="toggleAnchorWatch()">Anchor</button>
+    </div>
+
+    <!-- ═══ CHART VIEW (Map) ═══ -->
+    <div class="view active" id="view-chart">
+        <div id="map"></div>
+
+        <!-- Vessel Sidebar -->
+        <div id="vesselSidebar">
+            <div class="vsb-header">
+                <button class="vsb-close" onclick="closeVesselSidebar()">&#10005;</button>
+                <div class="vsb-name" id="vsb-name">-</div>
+                <div class="vsb-type" id="vsb-type">-</div>
+            </div>
+            <div class="vsb-body" id="vsb-body"></div>
+        </div>
+
+        <!-- Layer Panel -->
+        <div class="panel layer-panel" id="layerPanel">
+            <h3>Map Layers</h3>
+            <label><input type="checkbox" id="lyr-seamark" checked> Nautical marks</label>
+            <label><input type="checkbox" id="lyr-depth"> Bathymetry</label>
+            <div class="section">
+                <div class="section-title">Weather & Sea</div>
+                <label><input type="checkbox" id="lyr-wind" checked> Wind grid</label>
+                <label><input type="checkbox" id="lyr-rain"> Rain radar</label>
+                <label><input type="checkbox" id="lyr-sst"> Sea temperature</label>
+                <label><input type="checkbox" id="lyr-wave"> Waves & swell</label>
+                <label><input type="checkbox" id="lyr-current"> Currents</label>
+            </div>
+            <div class="section">
+                <div class="section-title">Zones</div>
+                <label><input type="checkbox" id="lyr-mpa"> Protected areas</label>
+                <label><input type="checkbox" id="lyr-eez"> EEZ boundaries</label>
+            </div>
+            <div class="section">
+                <div class="section-title">Vessel</div>
+                <label><input type="checkbox" id="lyr-vessel" checked> Own ship</label>
+                <label><input type="checkbox" id="lyr-ais"> AIS targets</label>
+            </div>
+        </div>
+
+        <!-- COLREGS Panel -->
+        <div class="panel colregs-panel" id="colregsPanel">
+            <h3>COLREGS Advisor</h3>
+            <div id="colregsContent"><p style="color:#78909c">Enable AIS targets to see live COLREGS analysis.</p></div>
+        </div>
+
+        <!-- Trainer Panel -->
+        <div class="panel trainer-panel" id="trainerPanel">
+            <h3>Lights & Shapes Trainer</h3>
+            <div id="trainerContent"></div>
+            <div style="margin-top:10px; display:flex; gap:6px; flex-wrap:wrap;">
+                <button class="btn" onclick="nextQuestion()">Next Question</button>
+                <button class="btn-outline" onclick="showAnswer()">Show Answer</button>
+                <span id="trainerScore" style="color:#78909c; font-size:11px; margin-left:auto;"></span>
+            </div>
+        </div>
+
+        <!-- Fleet Panel -->
+        <div class="panel" id="fleetPanel" style="top:62px; left:50%; transform:translateX(-50%); max-width:700px; width:95%; display:none;">
+            <h3>Fleet Tracker</h3>
+            <div style="display:flex; gap:8px; margin-bottom:10px; flex-wrap:wrap;">
+                <button class="btn-outline fleet-toggle" onclick="toggleFleet('CMB.TECH',this)" style="border-color:#4fc3f7;">CMB.TECH</button>
+                <button class="btn-outline fleet-toggle" onclick="toggleFleet('DEME',this)" style="border-color:#66bb6a;">DEME</button>
+                <button class="btn-outline fleet-toggle" onclick="toggleFleet('Heerema',this)" style="border-color:#ffa726;">Heerema</button>
+            </div>
+            <div id="fleetTable"><p style="color:#78909c; font-size:12px;">Click a company to load its fleet.</p></div>
+        </div>
+
+        <!-- Info Panel -->
+        <div class="panel info-panel" id="infoPanel" style="display:none;">
+            <h3 id="infoPanelTitle">Point Data</h3>
+            <div id="infoPanelContent"></div>
+        </div>
+    </div>
+
+    <!-- ═══ DASHBOARD VIEW ═══ -->
+    <div class="view" id="view-dashboard">
+        <div class="dashboard">
+            <h2>Daily Overview</h2>
+            <div class="card-grid">
+                <div class="card">
+                    <h3>Rest Hours</h3>
+                    <div class="stat status-green" id="dash-rest-24h">--</div>
+                    <div class="stat-label">hours in last 24h (min: 10h)</div>
+                    <div style="margin-top:8px;">
+                        <span class="stat" style="font-size:18px;" id="dash-rest-7d">--</span>
+                        <span class="stat-label">hours in last 7d (min: 77h)</span>
+                    </div>
+                </div>
+                <div class="card">
+                    <h3>Today's Tasks</h3>
+                    <div class="stat" id="dash-tasks-count">0</div>
+                    <div class="stat-label">pending tasks</div>
+                    <div class="quick-log" style="margin-top:12px;">
+                        <button onclick="quickAddTask()">+ Add Task</button>
+                    </div>
+                </div>
+                <div class="card">
+                    <h3>Mood & Energy</h3>
+                    <div class="quick-log">
+                        <button onclick="quickMood(5)">Great</button>
+                        <button onclick="quickMood(4)">Good</button>
+                        <button onclick="quickMood(3)">OK</button>
+                        <button onclick="quickMood(2)">Low</button>
+                        <button onclick="quickMood(1)">Bad</button>
+                    </div>
+                </div>
+                <div class="card">
+                    <h3>Workout</h3>
+                    <div class="stat" id="dash-workout-count">0</div>
+                    <div class="stat-label">workouts this week</div>
+                    <div class="quick-log" style="margin-top:12px;">
+                        <button onclick="quickWorkout('cardio')">Cardio</button>
+                        <button onclick="quickWorkout('strength')">Strength</button>
+                        <button onclick="quickWorkout('bodyweight')">Bodyweight</button>
+                    </div>
+                </div>
+                <div class="card">
+                    <h3>Upcoming Drills</h3>
+                    <div id="dash-drills">No drills scheduled</div>
+                </div>
+                <div class="card">
+                    <h3>COLREGS Training</h3>
+                    <div id="dash-colregs-score">No sessions yet</div>
+                    <div class="quick-log" style="margin-top:12px;">
+                        <button onclick="switchView('chart'); toggleMapPanel('trainerPanel');">Start Quiz</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ WELLBEING VIEW ═══ -->
+    <div class="view" id="view-wellbeing">
+        <div class="dashboard">
+            <h2>Wellbeing</h2>
+            <div class="card-grid">
+                <div class="card">
+                    <h3>Log Rest Period</h3>
+                    <div class="form-row"><label>Date</label><input type="date" id="rest-date"></div>
+                    <div class="form-row"><label>Start</label><input type="time" id="rest-start"></div>
+                    <div class="form-row"><label>End</label><input type="time" id="rest-end"></div>
+                    <div class="form-row"><label>Type</label><select id="rest-type"><option value="rest">Rest</option><option value="work">Work</option><option value="standby">Standby</option></select></div>
+                    <button class="btn" onclick="logRestHours()">Log</button>
+                </div>
+                <div class="card">
+                    <h3>Log Meal</h3>
+                    <div class="form-row"><label>Meal</label><select id="meal-type"><option>breakfast</option><option>lunch</option><option>dinner</option><option>snack</option></select></div>
+                    <div class="form-row"><label>Description</label><input type="text" id="meal-desc" placeholder="What did you eat?"></div>
+                    <div class="form-row"><label>Rating</label><select id="meal-rating"><option value="5">Great</option><option value="4">Good</option><option value="3" selected>OK</option><option value="2">Below avg</option><option value="1">Bad</option></select></div>
+                    <div class="form-row"><label>Source</label><select id="meal-galley"><option value="1">Ship galley</option><option value="0">Own food</option></select></div>
+                    <button class="btn" onclick="logMeal()">Log</button>
+                </div>
+                <div class="card">
+                    <h3>Log Workout</h3>
+                    <div class="form-row"><label>Type</label><select id="wo-type"><option>cardio</option><option>strength</option><option>bodyweight</option><option>flexibility</option></select></div>
+                    <div class="form-row"><label>Exercise</label><input type="text" id="wo-exercise" placeholder="e.g. push-ups, rowing machine"></div>
+                    <div class="form-row"><label>Duration</label><input type="number" id="wo-duration" placeholder="minutes"></div>
+                    <div class="form-row"><label>Notes</label><input type="text" id="wo-notes" placeholder="Optional notes"></div>
+                    <button class="btn" onclick="logWorkout()">Log</button>
+                </div>
+                <div class="card">
+                    <h3>MLC Compliance</h3>
+                    <div id="mlc-status">Loading...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ TASKS VIEW ═══ -->
+    <div class="view" id="view-tasks">
+        <div class="dashboard">
+            <h2>Tasks</h2>
+            <div style="margin-bottom:16px; display:flex; gap:8px;">
+                <input type="text" id="new-task-title" placeholder="New task..." style="background:#1a2332;color:#e0e6ed;border:1px solid #2a3a4a;padding:8px 12px;border-radius:4px;font-size:13px;flex:1;">
+                <select id="new-task-cat" style="background:#1a2332;color:#e0e6ed;border:1px solid #2a3a4a;padding:8px;border-radius:4px;font-size:12px;">
+                    <option value="general">General</option>
+                    <option value="maintenance">Maintenance</option>
+                    <option value="safety">Safety</option>
+                    <option value="admin">Admin</option>
+                    <option value="personal">Personal</option>
+                </select>
+                <button class="btn" onclick="addTask()">Add</button>
+            </div>
+            <div id="task-list"></div>
+        </div>
+    </div>
+
+    <!-- ═══ DRILLS VIEW ═══ -->
+    <div class="view" id="view-drills">
+        <div class="dashboard">
+            <h2>Drill Management</h2>
+            <div class="card-grid">
+                <div class="card">
+                    <h3>Schedule Drill</h3>
+                    <div class="form-row"><label>Type</label><select id="drill-type"><option value="fire">Fire & Emergency</option><option value="abandon_ship">Abandon Ship</option><option value="mob">Man Overboard</option><option value="sopep">SOPEP (Oil Spill)</option><option value="security">Security (ISPS)</option><option value="damage_control">Damage Control</option><option value="custom">Custom</option></select></div>
+                    <div class="form-row"><label>Title</label><input type="text" id="drill-title" placeholder="e.g. Engine room fire drill"></div>
+                    <div class="form-row"><label>Date</label><input type="date" id="drill-date"></div>
+                    <div class="form-row"><label>Scenario</label><textarea id="drill-scenario" placeholder="Describe the drill scenario..."></textarea></div>
+                    <button class="btn" onclick="scheduleDrill()">Schedule</button>
+                </div>
+                <div class="card" style="grid-column: span 2;">
+                    <h3>Drill Log</h3>
+                    <div id="drill-list">Loading...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
