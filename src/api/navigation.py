@@ -1,7 +1,9 @@
-"""Navigation API — COLREGS, fleet, AIS endpoints."""
+"""Navigation API — COLREGS, fleet, AIS, MOB endpoints."""
 
 from flask import Blueprint, request, jsonify
 from ..core.colregs import classify_encounter, compute_cpa_tcpa, bearing_to, range_nm, relative_bearing
+from ..core.ais import get_vessels, get_vessel_count
+from ..core.mob import create_mob_event, calculate_datum, generate_search_pattern, get_gmdss_procedure
 from ..data.fleet_db import FLEET_DB
 from ..data.lights_db import LIGHTS_DB
 
@@ -56,9 +58,162 @@ def get_fleet_company(company):
 
 @bp.route("/lights", methods=["GET"])
 def get_lights():
-    """Get lights & shapes training scenarios."""
+    """Get COLREGS training scenarios.
+
+    Query params: category, difficulty (1-3), random (count)
+    """
+    result = LIGHTS_DB
     category = request.args.get("category")
     if category:
-        filtered = [l for l in LIGHTS_DB if l["category"] == category]
-        return jsonify(filtered)
-    return jsonify(LIGHTS_DB)
+        result = [s for s in result if s["category"] == category]
+    difficulty = request.args.get("difficulty", type=int)
+    if difficulty:
+        result = [s for s in result if s.get("difficulty") == difficulty]
+    count = request.args.get("random", type=int)
+    if count and count < len(result):
+        import random
+        result = random.sample(result, count)
+    return jsonify(result)
+
+
+# ── AIS endpoints ──
+
+@bp.route("/ais/vessels", methods=["GET"])
+def ais_vessels():
+    """Get all tracked AIS vessels, optionally filtered by bounding box.
+
+    Query params: n, s, e, w (lat/lon bounds)
+    """
+    n = request.args.get("n", type=float)
+    s = request.args.get("s", type=float)
+    e = request.args.get("e", type=float)
+    w = request.args.get("w", type=float)
+
+    bounds = None
+    if all(v is not None for v in [n, s, e, w]):
+        bounds = {"n": n, "s": s, "e": e, "w": w}
+
+    vessels = get_vessels(bounds)
+    # Strip internal _ts field
+    result = []
+    for mmsi, v in vessels.items():
+        vessel = {k: val for k, val in v.items() if not k.startswith("_")}
+        result.append(vessel)
+
+    return jsonify({"vessels": result, "count": len(result)})
+
+
+@bp.route("/ais/status", methods=["GET"])
+def ais_status():
+    """Get AIS stream status."""
+    from ..core.ais import _running
+    from ..core.nmea import get_source_status
+    return jsonify({
+        "streaming": _running,
+        "vessel_count": get_vessel_count(),
+        "sources": get_source_status()
+    })
+
+
+@bp.route("/ais/sources", methods=["POST"])
+def add_ais_source():
+    """Add a new AIS data source (TCP, UDP, Signal K).
+
+    Body: {type: "tcp"|"udp"|"signalk", name: str, host: str, port: int}
+    """
+    from ..core.nmea import start_tcp_source, start_udp_source, start_signalk_source
+    data = request.json
+    src_type = data.get("type")
+    name = data.get("name", src_type)
+    host = data.get("host", "localhost")
+    port = data.get("port", 10110)
+
+    if src_type == "tcp":
+        start_tcp_source(name, host, port)
+    elif src_type == "udp":
+        start_udp_source(name, port, host)
+    elif src_type == "signalk":
+        start_signalk_source(name, host, port)
+    else:
+        return jsonify({"error": "Unknown source type. Use tcp, udp, or signalk."}), 400
+
+    return jsonify({"status": "started", "name": name, "type": src_type})
+
+
+# ── MOB (Man Overboard) ──
+
+# In-memory MOB event (only one active at a time)
+_active_mob = None
+
+
+@bp.route("/mob/trigger", methods=["POST"])
+def mob_trigger():
+    """Trigger MOB alarm. Records position and starts tracking.
+
+    Body: {lat, lon, cog, sog, wind_dir?, wind_speed?}
+    """
+    global _active_mob
+    data = request.json
+    _active_mob = create_mob_event(
+        lat=data["lat"], lon=data["lon"],
+        cog=data.get("cog", 0), sog=data.get("sog", 0),
+        wind_dir=data.get("wind_dir"), wind_speed=data.get("wind_speed")
+    )
+    return jsonify(_active_mob)
+
+
+@bp.route("/mob/status", methods=["GET"])
+def mob_status():
+    """Get current MOB event status with updated datum."""
+    if not _active_mob:
+        return jsonify({"active": False})
+
+    import time
+    elapsed = (time.time() - _active_mob["unix_ts"]) / 60.0
+    datum = calculate_datum(_active_mob, elapsed)
+    _active_mob["datum"] = datum
+
+    return jsonify({
+        "active": True,
+        "event": _active_mob,
+        "elapsed_minutes": round(elapsed, 1),
+        "datum": datum
+    })
+
+
+@bp.route("/mob/search-pattern", methods=["POST"])
+def mob_search_pattern():
+    """Generate search pattern around current datum.
+
+    Body: {pattern: "expanding_square"|"sector"|"parallel", radius_nm?, spacing_nm?}
+    """
+    if not _active_mob:
+        return jsonify({"error": "No active MOB event"}), 400
+
+    data = request.json
+    import time
+    elapsed = (time.time() - _active_mob["unix_ts"]) / 60.0
+    datum = calculate_datum(_active_mob, elapsed)
+
+    waypoints = generate_search_pattern(
+        datum=datum,
+        pattern_type=data.get("pattern", "expanding_square"),
+        search_radius_nm=data.get("radius_nm", 1.0),
+        track_spacing_nm=data.get("spacing_nm", 0.1)
+    )
+
+    return jsonify({"datum": datum, "pattern": data.get("pattern", "expanding_square"), "waypoints": waypoints})
+
+
+@bp.route("/mob/cancel", methods=["POST"])
+def mob_cancel():
+    """Cancel active MOB event."""
+    global _active_mob
+    _active_mob = None
+    return jsonify({"status": "cancelled"})
+
+
+@bp.route("/mob/procedure", methods=["GET"])
+def mob_procedure():
+    """Get full GMDSS MOB procedure checklist."""
+    return jsonify(get_gmdss_procedure())

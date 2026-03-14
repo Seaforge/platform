@@ -180,7 +180,7 @@ function bindLayerToggles() {
     function bind(id,layer,loadFn) { document.getElementById(id).addEventListener('change',function(){if(this.checked){if(loadFn)loadFn();layer.addTo(map);}else map.removeLayer(layer);}); }
     bind('lyr-seamark',seamarkLayer); bind('lyr-depth',depthLayer); bind('lyr-wind',windMarkers,loadWind); bind('lyr-sst',sstLayer); bind('lyr-mpa',mpaLayer); bind('lyr-eez',eezLayer); bind('lyr-vessel',vesselMarker); bind('lyr-wave',waveMarkers); bind('lyr-current',currentMarkers);
     document.getElementById('lyr-rain').addEventListener('change',function(){if(this.checked){if(rainLayer)rainLayer.addTo(map);else loadRainRadar();}else{if(rainLayer)map.removeLayer(rainLayer);}});
-    document.getElementById('lyr-ais').addEventListener('change',function(){if(this.checked){aisLayer.addTo(map);}else{map.removeLayer(aisLayer);}});
+    document.getElementById('lyr-ais').addEventListener('change',function(){if(this.checked){aisLayer.addTo(map);startAISPolling();}else{map.removeLayer(aisLayer);stopAISPolling();}});
 }
 
 function setupMapClick() {
@@ -280,6 +280,120 @@ function loadCompliance() {
 }
 
 // ═══════════════════════════════════════════════════════
+// MAN OVERBOARD (MOB)
+// ═══════════════════════════════════════════════════════
+var mobActive = false;
+var mobMarkers = L.layerGroup();
+var mobSearchLayer = L.layerGroup();
+var mobUpdateInterval = null;
+
+function triggerMOB() {
+    if (mobActive) { document.getElementById('mobPanel').style.display = 'block'; return; }
+    switchView('chart');
+    api('POST', '/api/mob/trigger', {
+        lat: ownShip.lat, lon: ownShip.lon,
+        cog: ownShip.cog, sog: ownShip.sog
+    }).then(function(mob) {
+        mobActive = true;
+        document.getElementById('btn-mob').style.background = '#ff1744';
+        document.getElementById('btn-mob').textContent = 'MOB ACTIVE';
+        document.getElementById('mobPanel').style.display = 'block';
+
+        // Mark MOB position
+        mobMarkers.clearLayers();
+        mobMarkers.addTo(map);
+        var mobIcon = L.divIcon({
+            html: '<div style="font-size:24px;text-align:center;animation:pulse 1s infinite;">&#128680;</div>',
+            iconSize: [30, 30], iconAnchor: [15, 15], className: ''
+        });
+        L.marker([mob.position.lat, mob.position.lon], {icon: mobIcon})
+            .bindPopup('<b>MOB POSITION</b><br>' + mob.timestamp)
+            .addTo(mobMarkers);
+
+        // Add pulsing circle
+        L.circle([mob.position.lat, mob.position.lon], {
+            radius: 200, color: '#ff1744', fillColor: '#ff1744',
+            fillOpacity: 0.1, weight: 2, dashArray: '5,5'
+        }).addTo(mobMarkers);
+
+        map.setView([mob.position.lat, mob.position.lon], 14);
+
+        // Load GMDSS procedure
+        loadMOBProcedure();
+
+        // Start datum updates
+        mobUpdateInterval = setInterval(updateMOBDatum, 30000);
+
+        // Sound alert if possible
+        if ('Notification' in window && Notification.permission === 'granted') {
+            new Notification('MAN OVERBOARD', {body: 'MOB alarm triggered! Follow GMDSS procedure.'});
+        }
+    });
+}
+
+function loadMOBProcedure() {
+    api('GET', '/api/mob/procedure').then(function(proc) {
+        var html = '';
+        var sections = [
+            {key: 'immediate_actions', title: 'IMMEDIATE ACTIONS', color: '#ef5350'},
+            {key: 'manoeuvre', title: 'RECOVERY MANOEUVRE', color: '#ffa726'},
+            {key: 'gmdss_alert', title: 'GMDSS ALERTING', color: '#4fc3f7'},
+            {key: 'recovery', title: 'RECOVERY', color: '#66bb6a'}
+        ];
+        sections.forEach(function(s) {
+            html += '<div style="margin:8px 0;"><div style="font-size:10px;font-weight:700;color:' + s.color + ';letter-spacing:1px;margin-bottom:4px;">' + s.title + '</div>';
+            proc[s.key].forEach(function(step) {
+                html += '<label style="display:flex;gap:8px;padding:3px 0;cursor:pointer;color:#b0bec5;font-size:12px;">';
+                html += '<input type="checkbox" style="accent-color:' + s.color + ';">';
+                html += '<span><b>' + step.step + '.</b> ' + step.action + '<br><span style="font-size:10px;color:#546e7a;">' + step.detail + '</span></span>';
+                html += '</label>';
+            });
+            html += '</div>';
+        });
+        document.getElementById('mobProcedure').innerHTML = html;
+    });
+}
+
+function updateMOBDatum() {
+    api('GET', '/api/mob/status').then(function(data) {
+        if (!data.active) return;
+        var el = document.getElementById('mobInfo');
+        el.innerHTML = '<div style="display:flex;gap:16px;flex-wrap:wrap;">' +
+            '<div><span style="color:#ef5350;font-size:20px;font-weight:700;">' + data.elapsed_minutes + '</span><span style="color:#78909c;font-size:11px;"> min elapsed</span></div>' +
+            '<div><span style="color:#ffa726;font-weight:600;">' + data.datum.lat.toFixed(4) + ', ' + data.datum.lon.toFixed(4) + '</span><span style="color:#78909c;font-size:11px;"> datum</span></div>' +
+            '<div><span style="color:#4fc3f7;">' + data.datum.drift_nm + ' NM</span><span style="color:#78909c;font-size:11px;"> drift</span></div>' +
+            '</div>';
+    });
+}
+
+function mobSearchPattern(type) {
+    api('POST', '/api/mob/search-pattern', {pattern: type}).then(function(data) {
+        mobSearchLayer.clearLayers();
+        mobSearchLayer.addTo(map);
+        var latlngs = data.waypoints.map(function(wp) { return [wp.lat, wp.lon]; });
+        L.polyline(latlngs, {color: '#ff1744', weight: 2, dashArray: '8,4', opacity: 0.7}).addTo(mobSearchLayer);
+        data.waypoints.forEach(function(wp) {
+            L.circleMarker([wp.lat, wp.lon], {radius: 3, color: '#ff1744', fillColor: '#ff1744', fillOpacity: 1})
+                .bindTooltip(wp.label, {permanent: true, direction: 'top', className: '', offset: [0, -6]})
+                .addTo(mobSearchLayer);
+        });
+    });
+}
+
+function cancelMOB() {
+    if (!confirm('Cancel MOB alarm?')) return;
+    api('POST', '/api/mob/cancel').then(function() {
+        mobActive = false;
+        mobMarkers.clearLayers();
+        mobSearchLayer.clearLayers();
+        if (mobUpdateInterval) clearInterval(mobUpdateInterval);
+        document.getElementById('btn-mob').style.background = '#b71c1c';
+        document.getElementById('btn-mob').textContent = 'MOB';
+        document.getElementById('mobPanel').style.display = 'none';
+    });
+}
+
+// ═══════════════════════════════════════════════════════
 // TASKS
 // ═══════════════════════════════════════════════════════
 function addTask() {
@@ -349,6 +463,89 @@ function loadDrills() {
 }
 
 // ═══════════════════════════════════════════════════════
+// LIVE AIS
+// ═══════════════════════════════════════════════════════
+var aisMarkers = {};
+var aisInterval = null;
+
+function aisVesselIcon(cog, sog) {
+    var color = sog > 0.5 ? '#00e676' : '#78909c';
+    var rotation = (cog != null && cog < 360) ? cog : 0;
+    return L.divIcon({
+        html: '<svg width="20" height="20" viewBox="0 0 24 24" style="transform:rotate(' + rotation + 'deg)">' +
+              '<polygon points="12,2 6,20 12,16 18,20" fill="' + color + '" stroke="#111" stroke-width="1" opacity="0.85"/></svg>',
+        iconSize: [20, 20], iconAnchor: [10, 10], className: ''
+    });
+}
+
+function loadAISVessels() {
+    if (!map || !document.getElementById('lyr-ais').checked) return;
+    var b = map.getBounds();
+    var url = '/api/ais/vessels?n=' + b.getNorth().toFixed(4) +
+              '&s=' + b.getSouth().toFixed(4) +
+              '&e=' + b.getEast().toFixed(4) +
+              '&w=' + b.getWest().toFixed(4);
+    fetch(url).then(function(r) { return r.json(); }).then(function(data) {
+        var seen = {};
+        data.vessels.forEach(function(v) {
+            seen[v.mmsi] = true;
+            var enc = null, risk = '';
+            if (v.cog != null && v.sog != null && v.sog > 0.5) {
+                enc = classifyEncounter(ownShip.cog, v.cog,
+                    ((bearingTo(ownShip.lat, ownShip.lon, v.lat, v.lon) - ownShip.cog) + 360) % 360);
+                var cpa = computeCPA(ownShip, {lat: v.lat, lon: v.lon, cog: v.cog, sog: v.sog});
+                if (parseFloat(cpa.cpa) < 0.5) risk = 'danger';
+                else if (parseFloat(cpa.cpa) < 1.0) risk = 'warning';
+                v._cpa = cpa;
+            }
+
+            if (aisMarkers[v.mmsi]) {
+                aisMarkers[v.mmsi].setLatLng([v.lat, v.lon]);
+                aisMarkers[v.mmsi].setIcon(aisVesselIcon(v.cog, v.sog));
+            } else {
+                var m = L.marker([v.lat, v.lon], {icon: aisVesselIcon(v.cog, v.sog)});
+                m.on('click', function() {
+                    openVesselSidebar({
+                        name: v.name || 'MMSI ' + v.mmsi,
+                        type: v.ship_type || 'Unknown',
+                        cog: v.cog != null ? v.cog.toFixed(1) : '—',
+                        sog: v.sog != null ? v.sog.toFixed(1) : '—',
+                        _enc: enc, _risk: risk
+                    });
+                });
+                m.bindTooltip(v.name || v.mmsi, {
+                    permanent: false, direction: 'top',
+                    className: 'ais-tooltip', offset: [0, -10]
+                });
+                aisMarkers[v.mmsi] = m;
+                m.addTo(aisLayer);
+            }
+        });
+        // Remove markers for vessels no longer in view
+        Object.keys(aisMarkers).forEach(function(mmsi) {
+            if (!seen[mmsi]) {
+                aisLayer.removeLayer(aisMarkers[mmsi]);
+                delete aisMarkers[mmsi];
+            }
+        });
+        // Update status indicator
+        var statusEl = document.getElementById('ais-count');
+        if (statusEl) statusEl.textContent = data.count + ' vessels';
+    }).catch(function() {});
+}
+
+function startAISPolling() {
+    if (aisInterval) return;
+    loadAISVessels();
+    aisInterval = setInterval(loadAISVessels, 10000); // Poll every 10s
+    map.on('moveend', loadAISVessels);
+}
+
+function stopAISPolling() {
+    if (aisInterval) { clearInterval(aisInterval); aisInterval = null; }
+}
+
+// ═══════════════════════════════════════════════════════
 // DASHBOARD
 // ═══════════════════════════════════════════════════════
 function loadDashboard() {
@@ -369,4 +566,15 @@ document.addEventListener('DOMContentLoaded', function() {
 
     initMap();
     loadDashboard();
+
+    // Check AIS status and auto-enable if streaming
+    fetch('/api/ais/status').then(function(r) { return r.json(); }).then(function(s) {
+        if (s.streaming) {
+            document.getElementById('lyr-ais').checked = true;
+            aisLayer.addTo(map);
+            startAISPolling();
+            var statusEl = document.getElementById('ais-count');
+            if (statusEl) statusEl.textContent = 'Connecting...';
+        }
+    }).catch(function() {});
 });

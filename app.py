@@ -33,7 +33,19 @@ def create_app():
     # Health check
     @app.route("/api/health")
     def health():
-        return {"status": "ok", "version": "0.1.0"}
+        from src.core.ais import _running, get_vessel_count
+        return {
+            "status": "ok",
+            "version": "0.1.0",
+            "ais_streaming": _running,
+            "ais_vessels": get_vessel_count()
+        }
+
+    # Start AIS stream if API key is configured
+    ais_key = os.environ.get("AISSTREAM_API_KEY", "").strip()
+    if ais_key:
+        from src.core.ais import start_stream
+        start_stream(ais_key)
 
     return app
 

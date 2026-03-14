@@ -3,7 +3,7 @@ services:
     build: .
     container_name: seaforge
     ports:
-      - "5001:5000"
+      - "5000:5000"
     volumes:
       # Persist database outside container
       - ./data:/app/data

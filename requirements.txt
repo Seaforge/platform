@@ -1,2 +1,4 @@
 flask>=3.0
 gunicorn>=22.0
+websocket-client>=1.7
+pyais>=2.6

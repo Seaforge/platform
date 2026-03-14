@@ -152,6 +152,7 @@
         <div class="sep"></div>
 
         <button id="btn-anchor" onclick="toggleAnchorWatch()">Anchor</button>
+        <button id="btn-mob" onclick="triggerMOB()" style="background:#b71c1c;color:white;border-color:#b71c1c;font-weight:700;">MOB</button>
     </div>
 
     <!-- ═══ CHART VIEW (Map) ═══ -->
@@ -190,6 +191,7 @@
                 <div class="section-title">Vessel</div>
                 <label><input type="checkbox" id="lyr-vessel" checked> Own ship</label>
                 <label><input type="checkbox" id="lyr-ais"> AIS targets</label>
+                <span id="ais-count" style="font-size:10px;color:#78909c;margin-left:8px;"></span>
             </div>
         </div>
 
@@ -225,6 +227,19 @@
         <div class="panel info-panel" id="infoPanel" style="display:none;">
             <h3 id="infoPanelTitle">Point Data</h3>
             <div id="infoPanelContent"></div>
+        </div>
+
+        <!-- MOB Panel -->
+        <div class="panel" id="mobPanel" style="top:62px;left:50%;transform:translateX(-50%);max-width:600px;width:95%;display:none;z-index:3000;border:2px solid #ef5350;">
+            <h3 style="color:#ef5350;">MAN OVERBOARD</h3>
+            <div id="mobInfo" style="margin-bottom:8px;"></div>
+            <div id="mobProcedure"></div>
+            <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap;">
+                <button class="btn" style="background:#ef5350;" onclick="mobSearchPattern('expanding_square')">Expanding Square</button>
+                <button class="btn" style="background:#ef5350;" onclick="mobSearchPattern('sector')">Sector Search</button>
+                <button class="btn" style="background:#ef5350;" onclick="mobSearchPattern('parallel')">Parallel Track</button>
+                <button class="btn-outline" style="border-color:#ef5350;color:#ef5350;" onclick="cancelMOB()">Cancel MOB</button>
+            </div>
         </div>
     </div>
 
