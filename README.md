@@ -59,7 +59,7 @@ SeaForge fills that gap:
 ### One-command setup
 
 ```bash
-git clone https://github.com/SeaForge/platform.git
+git clone https://github.com/Seaforge/platform.git
 cd platform
 cp .env.example .env          # review and adjust if needed
 docker compose up -d
