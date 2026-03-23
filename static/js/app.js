@@ -134,17 +134,36 @@ function addMockEntities() {
         description: '<h3>ROV</h3><p>Submerged at 200m depth.</p>',
     });
 
-    // 4. Tether Polyline (Tug to ROV)
+    // 4. Tether Polyline (Dynamic Catenary Curve)
     var tetherTension = 0.5;
-    setInterval(function() {
-        // tetherTension = (tetherTension + 0.05) % 1.1; // Replaced by phase-driven tension
-        tetherTension = (tetherTension + 0.05) % 1.1;
-    }, 5000);
+    // Function to calculate simple 3D Catenary points
+    function getCatenaryPositions() {
+        var start = Cesium.Cartographic.fromCartesian(tugPosition);
+        var end = Cesium.Cartographic.fromCartesian(rovPosition);
+        var pts = [];
+        var segments = 40;
+        var slack = 300.0 * (1.0 - tetherTension); // Slack increases as tension drops
+        var baseDrop = Math.abs(start.height - end.height);
+        
+        for (var i = 0; i <= segments; i++) {
+            var t = i / segments;
+            var lon = Cesium.Math.lerp(start.longitude, end.longitude, t);
+            var lat = Cesium.Math.lerp(start.latitude, end.latitude, t);
+            // Linear depth interpolation
+            var linearHeight = Cesium.Math.lerp(start.height, end.height, t);
+            // Parabolic droop simulating catenary (deeper in middle)
+            var droop = slack * Math.sin(t * Math.PI);
+            var h = linearHeight - droop;
+            if (h < end.height) h = end.height; // floor at anchor depth
+            pts.push(Cesium.Cartesian3.fromRadians(lon, lat, h));
+        }
+        return pts;
+    }
 
     viewer.entities.add({
         name: "ROV Tether",
         polyline: {
-            positions: [tugPosition, rovPosition],
+            positions: new Cesium.CallbackProperty(getCatenaryPositions, false),
             width: 4,
             material: new Cesium.PolylineDashMaterialProperty({
                 color: new Cesium.CallbackProperty(function(time, result) {
