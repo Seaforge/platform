@@ -382,6 +382,10 @@ Based on STCW II/1 competency requirements and the training platform plan:
 
 ---
 
+### Future Development Possibilities & Integrations
+
+- **OceanScrape region polygons**: [theSchaefer/OceanScrape](https://github.com/theSchaefer/OceanScrape) — The scraping approach itself is not suitable (pixel-based vessel detection, no MMSI/identity, ToS risk). However, `regions.py` contains **57 polygon-bounded maritime chokepoints** (Suez, Malacca, Panama, North Sea TSS, etc.) with zoom levels and tier classifications — a ready-to-use geographic dataset. Candidate use: pre-defined navigation zones or traffic hotspot layers on the SeaForge chart view. Also a strong candidate for WhaleGuardians: chokepoint polygons overlaid with whale habitat zones would directly support ship-strike risk analysis.
+
 ## 8. CLAUDE.md — Recommended Structure
 
 Keep it under 2000 words. Dense, scannable, actionable. Context primer, not knowledge base.

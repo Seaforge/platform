@@ -3,8 +3,9 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SeaForge — Maritime Intelligence</title>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    <title>SeaForge — 3D Prototype</title>
+    <script src="https://cesium.com/downloads/cesiumjs/releases/1.117/Build/Cesium/Cesium.js"></script>
+    <link href="https://cesium.com/downloads/cesiumjs/releases/1.117/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: -apple-system, 'Segoe UI', sans-serif; background: #0a0e14; color: #c5cdd9; }
@@ -85,8 +86,6 @@
         .trainer-panel .scenario { background: #1a2332; padding: 12px; border-radius: 6px; margin: 8px 0; font-size: 13px; color: #e0e6ed; line-height: 1.5; }
         .trainer-panel .answer { background: #0d2818; padding: 10px; border-radius: 6px; margin: 6px 0; color: #66bb6a; display: none; }
         .trainer-panel .rule-ref { color: #4fc3f7; font-size: 11px; }
-        .leaflet-popup-content-wrapper { background: #111820; color: #c5cdd9; border: 1px solid #1e2a3a; }
-        .leaflet-popup-tip { background: #111820; }
 
         /* ── Vessel Sidebar ── */
         #vesselSidebar { position: fixed; top: 52px; right: -360px; width: 340px; height: calc(100vh - 52px); background: #0d1520; border-left: 1px solid #1e2a3a; z-index: 2000; transition: right 0.28s cubic-bezier(0.4,0,0.2,1); display: flex; flex-direction: column; overflow: hidden; }
@@ -126,7 +125,7 @@
 <body>
     <!-- Navigation -->
     <div class="top-bar">
-        <div class="brand" onclick="switchView('dashboard')">SeaForge <span>v0.1</span></div>
+        <div class="brand" onclick="switchView('dashboard')">SeaForge <span>v0.2-3D</span></div>
         <div class="sep"></div>
 
         <div class="nav-group">
@@ -377,7 +376,6 @@
         </div>
     </div>
 
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="/static/js/app.js"></script>
 </body>
 </html>

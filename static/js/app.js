@@ -1,15 +1,14 @@
 // ═══════════════════════════════════════════════════════
-// SeaForge — Client Application
+// SeaForge — Client Application (3D Prototype)
 // ═══════════════════════════════════════════════════════
 
+// Cesium ion access token
+Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI5N2Y4YjI0Yi03MWY3LTQxZDEtODJlOC03ZDliNmYyMDI2NTQiLCJpZCI6MjIzNjQ0LCJpYXQiOjE3MTkwMjc1MDh9.2YtBmkN5Pz3z5opd2oBguqP-fL8x93cO-aYm4ikjb58';
+
 var ownShip = { lat: 51.4, lon: 3.2, cog: 45, sog: 8 };
-var anchorWatch = { active: false, lat: null, lon: null, radius: 50, circle: null, marker: null };
 var trainerIdx = -1, trainerCorrect = 0, trainerTotal = 0;
 var lightsDb = [];
-var map, vesselMarker, windMarkers, waveMarkers, currentMarkers, aisLayer;
-var seamarkLayer, depthLayer, rainLayer, sstLayer, mpaLayer, eezLayer;
-var fleetLayers = {}, fleetData = {}, fleetActive = {};
-var fleetColors = {'CMB.TECH':'#4fc3f7', 'DEME':'#66bb6a', 'Heerema':'#ffa726'};
+var viewer; // Cesium Viewer instance
 
 // ── Helpers ──
 function toRad(d) { return d * Math.PI / 180; }
@@ -40,9 +39,6 @@ function switchView(name) {
     if (name === 'wellbeing') loadCompliance();
     if (name === 'tasks') loadTasks();
     if (name === 'drills') loadDrills();
-
-    // Resize map if switching to chart
-    if (name === 'chart' && map) setTimeout(function() { map.invalidateSize(); }, 100);
 }
 
 function toggleMapPanel(id) {
@@ -57,115 +53,170 @@ function toggleMapPanel(id) {
 // MAP INITIALIZATION
 // ═══════════════════════════════════════════════════════
 function initMap() {
-    map = L.map('map', { center: [ownShip.lat, ownShip.lon], zoom: 10 });
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-        attribution: '&copy; CartoDB &copy; OSM', maxZoom: 19
-    }).addTo(map);
-
-    seamarkLayer = L.tileLayer('https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png', {
-        attribution: '&copy; OpenSeaMap', opacity: 0.85
-    }).addTo(map);
-
-    depthLayer = L.tileLayer.wms('https://ows.emodnet-bathymetry.eu/wms', {
-        layers: 'emodnet:mean_atlas_land', format: 'image/png', transparent: true, opacity: 0.3
+    viewer = new Cesium.Viewer('map', {
+        terrainProvider: Cesium.createWorldTerrain({
+            requestWaterMask: true,
+            requestVertexNormals: true
+        }),
+        baseLayerPicker: false,
+        animation: false,
+        timeline: false,
+        geocoder: false,
+        homeButton: false,
+        sceneModePicker: false,
+        navigationHelpButton: false,
+        infoBox: true,
+        selectionIndicator: true,
+        shouldAnimate: true
     });
 
-    sstLayer = L.tileLayer.wms('https://coastwatch.pfeg.noaa.gov/erddap/wms/jplMURSST41/request', {
-        layers: 'jplMURSST41:analysed_sst', format: 'image/png', transparent: true, opacity: 0.45, styles: 'rainbow'
+    // Dark theme for the globe
+    viewer.scene.globe.baseColor = Cesium.Color.fromCssColorString('#0a0e14');
+    viewer.scene.globe.enableLighting = true;
+    viewer.scene.fog.enabled = true;
+    viewer.scene.fog.density = 0.0001;
+
+    // Set initial camera view
+    viewer.camera.flyTo({
+        destination: Cesium.Cartesian3.fromDegrees(ownShip.lon, ownShip.lat, 15000),
+        orientation: {
+            heading: Cesium.Math.toRadians(0.0),
+            pitch: Cesium.Math.toRadians(-45.0),
+        }
     });
 
-    mpaLayer = L.tileLayer.wms('https://geo.vliz.be/geoserver/MarineRegions/wms', {
-        layers: 'MarineRegions:eez_boundaries', format: 'image/png', transparent: true, opacity: 0.4
-    });
-
-    eezLayer = L.tileLayer.wms('https://geo.vliz.be/geoserver/MarineRegions/wms', {
-        layers: 'MarineRegions:eez', format: 'image/png', transparent: true, opacity: 0.2
-    });
-
-    windMarkers = L.layerGroup().addTo(map);
-    waveMarkers = L.layerGroup();
-    currentMarkers = L.layerGroup();
-    aisLayer = L.layerGroup();
-
-    // Own ship
-    var vesselIcon = L.divIcon({
-        html: '<svg width="28" height="28" viewBox="0 0 24 24"><polygon points="12,2 4,20 12,16 20,20" fill="#4fc3f7" stroke="#0d47a1" stroke-width="1.5"/></svg>',
-        iconSize: [28, 28], iconAnchor: [14, 14], className: ''
-    });
-    vesselMarker = L.marker([ownShip.lat, ownShip.lon], {icon: vesselIcon}).addTo(map)
-        .bindPopup('<b>Own Ship</b><br>COG: ' + ownShip.cog + '&deg; SOG: ' + ownShip.sog + ' kts');
-
-    // GPS watch
-    if (navigator.geolocation) {
-        navigator.geolocation.watchPosition(function(pos) {
-            ownShip.lat = pos.coords.latitude;
-            ownShip.lon = pos.coords.longitude;
-            if (pos.coords.heading) ownShip.cog = pos.coords.heading;
-            if (pos.coords.speed) ownShip.sog = pos.coords.speed * 1.94384;
-            vesselMarker.setLatLng([ownShip.lat, ownShip.lon]);
-            checkAnchorWatch();
-        }, function(){}, {enableHighAccuracy: true, maximumAge: 5000});
-    }
-
-    loadWind();
-    loadRainRadar();
-    map.on('moveend', loadWind);
-    bindLayerToggles();
-    setupMapClick();
+    // Add mock entities
+    addMockEntities();
 
     // Load lights data
     fetch('/api/lights').then(function(r){return r.json();}).then(function(d){ lightsDb = d; nextQuestion(); });
 }
 
-// ── Wind ──
-function beaufortColor(ms) { return ms < 6 ? '#4fc3f7' : ms < 11 ? '#66bb6a' : ms < 17 ? '#ffa726' : '#ef5350'; }
-function msToKnots(ms) { return (ms * 1.94384).toFixed(1); }
-function msToBeaufort(ms) { var b=[0.5,1.6,3.4,5.5,8,10.8,13.9,17.2,20.8,24.5,28.5,32.7]; for(var i=0;i<b.length;i++) if(ms<b[i]) return i; return 12; }
-
-function loadWind() {
-    if (!document.getElementById('lyr-wind').checked) return;
-    var c = map.getCenter(), z = map.getZoom();
-    var step = z >= 10 ? 0.3 : z >= 8 ? 0.6 : 1.2;
-    var pts = [];
-    for (var dy=-1; dy<=1; dy++) for (var dx=-1; dx<=1; dx++) pts.push({lat:(c.lat+dy*step).toFixed(2), lon:(c.lng+dx*step).toFixed(2)});
-    fetch('https://api.open-meteo.com/v1/forecast?latitude=' + pts.map(function(p){return p.lat;}).join(',') +
-        '&longitude=' + pts.map(function(p){return p.lon;}).join(',') + '&current=wind_speed_10m,wind_direction_10m,wind_gusts_10m&wind_speed_unit=ms')
-        .then(function(r){return r.json();}).then(function(data) {
-            windMarkers.clearLayers();
-            var results = Array.isArray(data) ? data : [data];
-            results.forEach(function(d,i) {
-                if (!d.current) return;
-                var ws=d.current.wind_speed_10m, wd=d.current.wind_direction_10m, bft=msToBeaufort(ws), col=beaufortColor(ws);
-                var icon = L.divIcon({
-                    html:'<div style="transform:rotate('+wd+'deg);color:'+col+';font-size:20px;text-align:center;line-height:1;">&#8593;<div style="transform:rotate(-'+wd+'deg);font-size:9px;">'+bft+'</div></div>',
-                    iconSize:[28,28], iconAnchor:[14,14], className:''
-                });
-                L.marker([parseFloat(pts[i].lat),parseFloat(pts[i].lon)],{icon:icon})
-                    .bindPopup('<b>Wind</b><br>'+msToKnots(ws)+' kts ('+bft+' Bft)<br>Dir: '+wd+'&deg;')
-                    .addTo(windMarkers);
-            });
-        }).catch(function(){});
-}
-
-function loadRainRadar() {
-    fetch('https://api.rainviewer.com/public/weather-maps.json').then(function(r){return r.json();}).then(function(data) {
-        var latest = data.radar.past[data.radar.past.length - 1];
-        if (rainLayer) map.removeLayer(rainLayer);
-        rainLayer = L.tileLayer(data.host + latest.path + '/256/{z}/{x}/{y}/4/1_1.png', { opacity: 0.5 });
-        if (document.getElementById('lyr-rain').checked) rainLayer.addTo(map);
+function addMockEntities() {
+    // 1. DP2 Tug (Main Vessel)
+    const tugPosition = Cesium.Cartesian3.fromDegrees(ownShip.lon, ownShip.lat, 0);
+    viewer.entities.add({
+        name: 'DP2 Tug',
+        position: tugPosition,
+        model: {
+            uri: 'https://assets.cesium.com/production/models/CesiumMilkTruck/CesiumMilkTruck-kmc.glb', // Placeholder model
+            scale: 20.0,
+            minimumPixelSize: 64,
+        },
+        description: '<h3>DP2 Tug</h3><p>Main vessel for the operation.</p>',
     });
+
+    // 2. USV (Unmanned Surface Vehicle)
+    const usvPosition = Cesium.Cartesian3.fromDegrees(ownShip.lon + 0.001, ownShip.lat + 0.001, 0);
+    viewer.entities.add({
+        name: 'USV',
+        position: usvPosition,
+        ellipsoid: {
+            radii: new Cesium.Cartesian3(10.0, 5.0, 4.0),
+            material: Cesium.Color.DODGERBLUE.withAlpha(0.8),
+            outline: true,
+            outlineColor: Cesium.Color.WHITE,
+        },
+        description: '<h3>USV</h3><p>Unmanned Surface Vehicle supporting the operation.</p>',
+    });
+
+    // 3. ROV (Remotely Operated Vehicle) - Submerged
+    const rovPosition = Cesium.Cartesian3.fromDegrees(ownShip.lon + 0.0005, ownShip.lat - 0.0005, -200);
+    viewer.entities.add({
+        name: 'ROV',
+        position: rovPosition,
+        box: {
+            dimensions: new Cesium.Cartesian3(5.0, 3.0, 2.0),
+            material: Cesium.Color.ORANGE.withAlpha(0.9),
+            outline: true,
+            outlineColor: Cesium.Color.WHITE,
+        },
+        description: '<h3>ROV</h3><p>Submerged at 200m depth.</p>',
+    });
+
+    // 4. Tether Polyline (Tug to ROV)
+    var tetherTension = 0.5;
+    setInterval(function() {
+        // tetherTension = (tetherTension + 0.05) % 1.1; // Replaced by phase-driven tension
+        tetherTension = (tetherTension + 0.05) % 1.1;
+    }, 5000);
+
+    viewer.entities.add({
+        name: "ROV Tether",
+        polyline: {
+            positions: [tugPosition, rovPosition],
+            width: 4,
+            material: new Cesium.PolylineDashMaterialProperty({
+                color: new Cesium.CallbackProperty(function(time, result) {
+                    var hue = tetherTension < 0.6 ? 0.33 : (tetherTension < 0.85 ? 0.16 : 0.0);
+                    return Cesium.Color.fromHsl(hue, 1.0, 0.5, 1.0, result);
+                }, false),
+                dashLength: 16.0,
+            }),
+            clampToGround: false,
+        },
+    });
+
+    viewer.zoomTo(viewer.entities);
+    // 5. Phase-driven Entity Tinting & Tension (Bridging Mission Control)
+    var currentPhase = 'Pre-Tow';
+    var tugEntity = viewer.entities.getById('tug-entity'); // we need to add an id to it
+    
+    function pollPhase() {
+        fetch('/api/ops/phase')
+            .then(r => r.json())
+            .then(data => {
+                if (data.currentPhase && data.currentPhase !== currentPhase) {
+                    currentPhase = data.currentPhase;
+                    updateEntityBasedOnPhase();
+                }
+            }).catch(console.error);
+    }
+    setInterval(pollPhase, 2000);
+
+    function updateEntityBasedOnPhase() {
+        if (!tugEntity) tugEntity = viewer.entities.values.find(e => e.name === 'DP2 Tug');
+        if (!tugEntity || !tugEntity.model) return;
+        
+        if (currentPhase === 'Pre-Tow') {
+            tetherTension = 0.2;
+            tugEntity.model.color = Cesium.Color.GREEN.withAlpha(0.7);
+        } else if (currentPhase === 'Connect') {
+            tetherTension = 0.5;
+            tugEntity.model.color = Cesium.Color.YELLOW.withAlpha(0.7);
+        } else if (currentPhase === 'Hold') {
+            tetherTension = 0.95; // Red tension
+            tugEntity.model.color = Cesium.Color.RED.withAlpha(0.7);
+            
+            // Add a temporary alert primitive above the tug
+            if (!viewer.entities.getById('rest-alert')) {
+                viewer.entities.add({
+                    id: 'rest-alert',
+                    position: Cesium.Cartesian3.fromDegrees(ownShip.lon, ownShip.lat, 50),
+                    label: {
+                        text: 'REST BREACH RISK\nHOLD PHASE',
+                        font: 'bold 24px sans-serif',
+                        fillColor: Cesium.Color.RED,
+                        outlineColor: Cesium.Color.WHITE,
+                        outlineWidth: 2,
+                        style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+                        pixelOffset: new Cesium.Cartesian2(0, -50)
+                    }
+                });
+            }
+        } else if (currentPhase === 'Release') {
+            tetherTension = 0.1;
+            tugEntity.model.color = Cesium.Color.DODGERBLUE.withAlpha(0.7);
+            viewer.entities.removeById('rest-alert');
+        } else if (currentPhase === 'Complete') {
+            tetherTension = 0.0;
+            tugEntity.model.color = Cesium.Color.WHITE.withAlpha(1.0);
+            viewer.entities.removeById('rest-alert');
+        }
+    }
+    pollPhase(); // initial poll
 }
 
-// ── Navigation math ──
-function bearingTo(lat1,lon1,lat2,lon2) { var dlon=toRad(lon2-lon1),la1=toRad(lat1),la2=toRad(lat2); return (toDeg(Math.atan2(Math.sin(dlon)*Math.cos(la2), Math.cos(la1)*Math.sin(la2)-Math.sin(la1)*Math.cos(la2)*Math.cos(dlon)))+360)%360; }
-function rangeNm(lat1,lon1,lat2,lon2) { var dlat=toRad(lat2-lat1),dlon=toRad(lon2-lon1); var a=Math.pow(Math.sin(dlat/2),2)+Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.pow(Math.sin(dlon/2),2); return 2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a))*3440.065; }
-function computeCPA(own,tgt) { var tx=(tgt.lon-own.lon)*60*Math.cos(toRad(own.lat)),ty=(tgt.lat-own.lat)*60; var ovx=own.sog*Math.sin(toRad(own.cog)),ovy=own.sog*Math.cos(toRad(own.cog)); var tvx=tgt.sog*Math.sin(toRad(tgt.cog)),tvy=tgt.sog*Math.cos(toRad(tgt.cog)); var rvx=tvx-ovx,rvy=tvy-ovy,rv2=rvx*rvx+rvy*rvy; if(rv2<0.0001) return {cpa:Math.sqrt(tx*tx+ty*ty).toFixed(2),tcpa:999}; var t=-(tx*rvx+ty*rvy)/rv2; if(t<0) return {cpa:Math.sqrt(tx*tx+ty*ty).toFixed(2),tcpa:0}; var cx=tx+rvx*t,cy=ty+rvy*t; return {cpa:Math.sqrt(cx*cx+cy*cy).toFixed(2),tcpa:(t*60).toFixed(1)}; }
-function classifyEncounter(ownCog,tgtCog,relBrg) { var cd=Math.abs((ownCog-tgtCog+180)%360-180); if(relBrg>112.5&&relBrg<247.5) return {situation:'overtaking',role:'stand-on',rule:'Rule 13',action:'Maintain course and speed.'}; if(cd>170&&(relBrg<6||relBrg>354)) return {situation:'head-on',role:'give-way',rule:'Rule 14',action:'Both alter to STARBOARD.'}; if(relBrg<112.5) return {situation:'crossing',role:'give-way',rule:'Rule 15',action:'Target on STBD. Alter to STARBOARD.'}; return {situation:'crossing',role:'stand-on',rule:'Rule 17',action:'Maintain course/speed.'}; }
-
-// ── Anchor Watch ──
-function toggleAnchorWatch() { var btn=document.getElementById('btn-anchor'); if(anchorWatch.active){anchorWatch.active=false;btn.classList.remove('active');if(anchorWatch.circle)map.removeLayer(anchorWatch.circle);if(anchorWatch.marker)map.removeLayer(anchorWatch.marker);}else{anchorWatch.active=true;anchorWatch.lat=ownShip.lat;anchorWatch.lon=ownShip.lon;btn.classList.add('active');btn.style.background='#e65100';anchorWatch.circle=L.circle([anchorWatch.lat,anchorWatch.lon],{radius:anchorWatch.radius,color:'#ffa726',fillColor:'#ffa726',fillOpacity:0.06,weight:2,dashArray:'8,6'}).addTo(map);anchorWatch.marker=L.marker([anchorWatch.lat,anchorWatch.lon],{icon:L.divIcon({html:'<div style="font-size:20px;">&#9875;</div>',iconSize:[20,20],iconAnchor:[10,10],className:''})}).addTo(map);} }
-function checkAnchorWatch() { if(!anchorWatch.active)return; var d=rangeNm(anchorWatch.lat,anchorWatch.lon,ownShip.lat,ownShip.lon)*1852; if(d>anchorWatch.radius){anchorWatch.circle.setStyle({color:'#ef5350',fillColor:'#ef5350',fillOpacity:0.15});if('Notification' in window&&Notification.permission==='granted') new Notification('ANCHOR DRAGGING',{body:'Drift: '+d.toFixed(0)+'m!'});} }
-if ('Notification' in window) Notification.requestPermission();
 
 // ── Trainer ──
 function nextQuestion() { if(!lightsDb.length) return; trainerIdx=Math.floor(Math.random()*lightsDb.length); var q=lightsDb[trainerIdx]; document.getElementById('trainerContent').innerHTML='<div class="scenario">'+q.scenario+'</div><div class="answer" id="trainerAnswer">'+q.answer+'<br><span class="rule-ref">'+q.rule+'</span></div>'; }
@@ -175,52 +226,12 @@ function showAnswer() { var el=document.getElementById('trainerAnswer'); if(el){
 function openVesselSidebar(t) { /* full implementation preserved from Flyntrea */ document.getElementById('vsb-name').textContent=t.name; document.getElementById('vsb-type').textContent=t.type; var html='<div class="vsb-section"><div class="vsb-section-title">Motion</div>'; html+='<div class="vsb-row"><span class="vsb-lbl">COG</span><span class="vsb-val highlight">'+t.cog+'&deg;</span></div>'; html+='<div class="vsb-row"><span class="vsb-lbl">SOG</span><span class="vsb-val highlight">'+t.sog+' kts</span></div></div>'; if(t._enc){html+='<div class="vsb-section"><div class="vsb-section-title">COLREGS</div><div class="vsb-colregs-box '+t._risk+'"><div class="vsb-colregs-rule">'+t._enc.rule+' - '+t._enc.role+'</div><div class="vsb-colregs-action">'+t._enc.action+'</div></div></div>';} document.getElementById('vsb-body').innerHTML=html; document.getElementById('vesselSidebar').classList.add('open'); }
 function closeVesselSidebar() { document.getElementById('vesselSidebar').classList.remove('open'); }
 
-// ── Layer toggles ──
-function bindLayerToggles() {
-    function bind(id,layer,loadFn) { document.getElementById(id).addEventListener('change',function(){if(this.checked){if(loadFn)loadFn();layer.addTo(map);}else map.removeLayer(layer);}); }
-    bind('lyr-seamark',seamarkLayer); bind('lyr-depth',depthLayer); bind('lyr-wind',windMarkers,loadWind); bind('lyr-sst',sstLayer); bind('lyr-mpa',mpaLayer); bind('lyr-eez',eezLayer); bind('lyr-vessel',vesselMarker); bind('lyr-wave',waveMarkers); bind('lyr-current',currentMarkers);
-    document.getElementById('lyr-rain').addEventListener('change',function(){if(this.checked){if(rainLayer)rainLayer.addTo(map);else loadRainRadar();}else{if(rainLayer)map.removeLayer(rainLayer);}});
-    document.getElementById('lyr-ais').addEventListener('change',function(){if(this.checked){aisLayer.addTo(map);startAISPolling();}else{map.removeLayer(aisLayer);stopAISPolling();}});
-}
-
-function setupMapClick() {
-    map.on('click', function(e) {
-        closeVesselSidebar();
-        var lat=e.latlng.lat.toFixed(4), lon=e.latlng.lng.toFixed(4);
-        var panel=document.getElementById('infoPanel'); panel.style.display='block';
-        document.getElementById('infoPanelTitle').textContent='Loading...';
-        Promise.all([
-            fetch('https://api.open-meteo.com/v1/forecast?latitude='+lat+'&longitude='+lon+'&current=wind_speed_10m,wind_direction_10m,wind_gusts_10m,temperature_2m,pressure_msl&wind_speed_unit=ms').then(function(r){return r.json();}),
-            fetch('https://marine-api.open-meteo.com/v1/marine?latitude='+lat+'&longitude='+lon+'&current=wave_height,wave_period,ocean_current_velocity,ocean_current_direction').then(function(r){return r.json();})
-        ]).then(function(r) {
-            var w=r[0].current||{}, m=r[1].current||{};
-            document.getElementById('infoPanelTitle').textContent=lat+', '+lon;
-            var h='';
-            if(w.wind_speed_10m!=null) h+='<div class="row"><span class="lbl">Wind</span><span class="val">'+msToKnots(w.wind_speed_10m)+' kts '+msToBeaufort(w.wind_speed_10m)+' Bft</span></div>';
-            if(w.temperature_2m!=null) h+='<div class="row"><span class="lbl">Air</span><span class="val">'+w.temperature_2m+'&deg;C</span></div>';
-            if(w.pressure_msl!=null) h+='<div class="row"><span class="lbl">Pressure</span><span class="val">'+w.pressure_msl+' hPa</span></div>';
-            if(m.wave_height!=null) h+='<div class="row"><span class="lbl">Waves</span><span class="val">'+m.wave_height+'m</span></div>';
-            document.getElementById('infoPanelContent').innerHTML=h||'No marine data';
-        });
-    });
-    map.on('dblclick', function(){document.getElementById('infoPanel').style.display='none';});
-}
-
-// ── Fleet ──
-function toggleFleet(company, btn) {
-    if(fleetActive[company]){map.removeLayer(fleetLayers[company]);fleetActive[company]=false;btn.style.background='transparent';btn.style.color=fleetColors[company];updateFleetTable();return;}
-    btn.style.background=fleetColors[company];btn.style.color='#111820';fleetActive[company]=true;
-    if(fleetData[company]){showFleet(company);return;}
-    fetch('/api/fleet/'+encodeURIComponent(company)).then(function(r){return r.json();}).then(function(data){fleetData[company]=data;showFleet(company);});
-}
-function showFleet(company) { if(fleetLayers[company])map.removeLayer(fleetLayers[company]);fleetLayers[company]=L.layerGroup().addTo(map);updateFleetTable(); }
-function updateFleetTable() {
-    var active=Object.keys(fleetActive).filter(function(k){return fleetActive[k];});
-    if(!active.length){document.getElementById('fleetTable').innerHTML='<p style="color:#78909c;font-size:12px;">Click a company to load.</p>';return;}
-    var h='<table style="width:100%;border-collapse:collapse;font-size:11px;"><tr style="color:#4fc3f7;border-bottom:1px solid #1e2a3a;"><th style="text-align:left;padding:4px;">Vessel</th><th>Type</th><th>IMO</th><th>Flag</th></tr>';
-    active.forEach(function(co){var vs=fleetData[co]||[];h+='<tr><td colspan="4" style="padding:6px 4px;color:'+fleetColors[co]+';font-weight:600;">'+co+' ('+vs.length+')</td></tr>';vs.forEach(function(v){h+='<tr style="border-bottom:1px solid #0d1117;color:#b0bec5;"><td style="padding:3px 4px;color:#e0e6ed;">'+v.name+'</td><td style="font-size:10px;">'+v.type+'</td><td style="font-family:monospace;font-size:10px;">'+v.imo+'</td><td style="text-align:center;">'+v.flag+'</td></tr>';});});
-    h+='</table>';document.getElementById('fleetTable').innerHTML=h;
-}
+// Empty functions for features not yet implemented in 3D
+function bindLayerToggles() {}
+function setupMapClick() {}
+function toggleFleet(company, btn) {}
+function showFleet(company) {}
+function updateFleetTable() {}
 
 // ═══════════════════════════════════════════════════════
 // WELLBEING API CALLS
@@ -283,115 +294,13 @@ function loadCompliance() {
 // MAN OVERBOARD (MOB)
 // ═══════════════════════════════════════════════════════
 var mobActive = false;
-var mobMarkers = L.layerGroup();
-var mobSearchLayer = L.layerGroup();
-var mobUpdateInterval = null;
 
 function triggerMOB() {
-    if (mobActive) { document.getElementById('mobPanel').style.display = 'block'; return; }
-    switchView('chart');
-    api('POST', '/api/mob/trigger', {
-        lat: ownShip.lat, lon: ownShip.lon,
-        cog: ownShip.cog, sog: ownShip.sog
-    }).then(function(mob) {
-        mobActive = true;
-        document.getElementById('btn-mob').style.background = '#ff1744';
-        document.getElementById('btn-mob').textContent = 'MOB ACTIVE';
-        document.getElementById('mobPanel').style.display = 'block';
-
-        // Mark MOB position
-        mobMarkers.clearLayers();
-        mobMarkers.addTo(map);
-        var mobIcon = L.divIcon({
-            html: '<div style="font-size:24px;text-align:center;animation:pulse 1s infinite;">&#128680;</div>',
-            iconSize: [30, 30], iconAnchor: [15, 15], className: ''
-        });
-        L.marker([mob.position.lat, mob.position.lon], {icon: mobIcon})
-            .bindPopup('<b>MOB POSITION</b><br>' + mob.timestamp)
-            .addTo(mobMarkers);
-
-        // Add pulsing circle
-        L.circle([mob.position.lat, mob.position.lon], {
-            radius: 200, color: '#ff1744', fillColor: '#ff1744',
-            fillOpacity: 0.1, weight: 2, dashArray: '5,5'
-        }).addTo(mobMarkers);
-
-        map.setView([mob.position.lat, mob.position.lon], 14);
-
-        // Load GMDSS procedure
-        loadMOBProcedure();
-
-        // Start datum updates
-        mobUpdateInterval = setInterval(updateMOBDatum, 30000);
-
-        // Sound alert if possible
-        if ('Notification' in window && Notification.permission === 'granted') {
-            new Notification('MAN OVERBOARD', {body: 'MOB alarm triggered! Follow GMDSS procedure.'});
-        }
-    });
+    alert("MOB functionality not yet implemented in 3D view.");
 }
+function cancelMOB() {}
+function mobSearchPattern(type) {}
 
-function loadMOBProcedure() {
-    api('GET', '/api/mob/procedure').then(function(proc) {
-        var html = '';
-        var sections = [
-            {key: 'immediate_actions', title: 'IMMEDIATE ACTIONS', color: '#ef5350'},
-            {key: 'manoeuvre', title: 'RECOVERY MANOEUVRE', color: '#ffa726'},
-            {key: 'gmdss_alert', title: 'GMDSS ALERTING', color: '#4fc3f7'},
-            {key: 'recovery', title: 'RECOVERY', color: '#66bb6a'}
-        ];
-        sections.forEach(function(s) {
-            html += '<div style="margin:8px 0;"><div style="font-size:10px;font-weight:700;color:' + s.color + ';letter-spacing:1px;margin-bottom:4px;">' + s.title + '</div>';
-            proc[s.key].forEach(function(step) {
-                html += '<label style="display:flex;gap:8px;padding:3px 0;cursor:pointer;color:#b0bec5;font-size:12px;">';
-                html += '<input type="checkbox" style="accent-color:' + s.color + ';">';
-                html += '<span><b>' + step.step + '.</b> ' + step.action + '<br><span style="font-size:10px;color:#546e7a;">' + step.detail + '</span></span>';
-                html += '</label>';
-            });
-            html += '</div>';
-        });
-        document.getElementById('mobProcedure').innerHTML = html;
-    });
-}
-
-function updateMOBDatum() {
-    api('GET', '/api/mob/status').then(function(data) {
-        if (!data.active) return;
-        var el = document.getElementById('mobInfo');
-        el.innerHTML = '<div style="display:flex;gap:16px;flex-wrap:wrap;">' +
-            '<div><span style="color:#ef5350;font-size:20px;font-weight:700;">' + data.elapsed_minutes + '</span><span style="color:#78909c;font-size:11px;"> min elapsed</span></div>' +
-            '<div><span style="color:#ffa726;font-weight:600;">' + data.datum.lat.toFixed(4) + ', ' + data.datum.lon.toFixed(4) + '</span><span style="color:#78909c;font-size:11px;"> datum</span></div>' +
-            '<div><span style="color:#4fc3f7;">' + data.datum.drift_nm + ' NM</span><span style="color:#78909c;font-size:11px;"> drift</span></div>' +
-            '</div>';
-    });
-}
-
-function mobSearchPattern(type) {
-    api('POST', '/api/mob/search-pattern', {pattern: type}).then(function(data) {
-        mobSearchLayer.clearLayers();
-        mobSearchLayer.addTo(map);
-        var latlngs = data.waypoints.map(function(wp) { return [wp.lat, wp.lon]; });
-        L.polyline(latlngs, {color: '#ff1744', weight: 2, dashArray: '8,4', opacity: 0.7}).addTo(mobSearchLayer);
-        data.waypoints.forEach(function(wp) {
-            L.circleMarker([wp.lat, wp.lon], {radius: 3, color: '#ff1744', fillColor: '#ff1744', fillOpacity: 1})
-                .bindTooltip(wp.label, {permanent: true, direction: 'top', className: '', offset: [0, -6]})
-                .addTo(mobSearchLayer);
-        });
-    });
-}
-
-function cancelMOB() {
-    if (!confirm('Cancel MOB alarm?')) return;
-    api('POST', '/api/mob/cancel').then(function() {
-        mobActive = false;
-        mobMarkers.clearLayers();
-        mobSearchLayer.clearLayers();
-        if (mobUpdateInterval) clearInterval(mobUpdateInterval);
-        document.getElementById('btn-mob').style.background = '#b71c1c';
-        document.getElementById('btn-mob').textContent = 'MOB';
-        document.getElementById('mobPanel').style.display = 'none';
-    });
-}
 
 // ═══════════════════════════════════════════════════════
 // TASKS
@@ -463,87 +372,11 @@ function loadDrills() {
 }
 
 // ═══════════════════════════════════════════════════════
-// LIVE AIS
+// LIVE AIS (Placeholder)
 // ═══════════════════════════════════════════════════════
-var aisMarkers = {};
-var aisInterval = null;
-
-function aisVesselIcon(cog, sog) {
-    var color = sog > 0.5 ? '#00e676' : '#78909c';
-    var rotation = (cog != null && cog < 360) ? cog : 0;
-    return L.divIcon({
-        html: '<svg width="20" height="20" viewBox="0 0 24 24" style="transform:rotate(' + rotation + 'deg)">' +
-              '<polygon points="12,2 6,20 12,16 18,20" fill="' + color + '" stroke="#111" stroke-width="1" opacity="0.85"/></svg>',
-        iconSize: [20, 20], iconAnchor: [10, 10], className: ''
-    });
-}
-
-function loadAISVessels() {
-    if (!map || !document.getElementById('lyr-ais').checked) return;
-    var b = map.getBounds();
-    var url = '/api/ais/vessels?n=' + b.getNorth().toFixed(4) +
-              '&s=' + b.getSouth().toFixed(4) +
-              '&e=' + b.getEast().toFixed(4) +
-              '&w=' + b.getWest().toFixed(4);
-    fetch(url).then(function(r) { return r.json(); }).then(function(data) {
-        var seen = {};
-        data.vessels.forEach(function(v) {
-            seen[v.mmsi] = true;
-            var enc = null, risk = '';
-            if (v.cog != null && v.sog != null && v.sog > 0.5) {
-                enc = classifyEncounter(ownShip.cog, v.cog,
-                    ((bearingTo(ownShip.lat, ownShip.lon, v.lat, v.lon) - ownShip.cog) + 360) % 360);
-                var cpa = computeCPA(ownShip, {lat: v.lat, lon: v.lon, cog: v.cog, sog: v.sog});
-                if (parseFloat(cpa.cpa) < 0.5) risk = 'danger';
-                else if (parseFloat(cpa.cpa) < 1.0) risk = 'warning';
-                v._cpa = cpa;
-            }
-
-            if (aisMarkers[v.mmsi]) {
-                aisMarkers[v.mmsi].setLatLng([v.lat, v.lon]);
-                aisMarkers[v.mmsi].setIcon(aisVesselIcon(v.cog, v.sog));
-            } else {
-                var m = L.marker([v.lat, v.lon], {icon: aisVesselIcon(v.cog, v.sog)});
-                m.on('click', function() {
-                    openVesselSidebar({
-                        name: v.name || 'MMSI ' + v.mmsi,
-                        type: v.ship_type || 'Unknown',
-                        cog: v.cog != null ? v.cog.toFixed(1) : '—',
-                        sog: v.sog != null ? v.sog.toFixed(1) : '—',
-                        _enc: enc, _risk: risk
-                    });
-                });
-                m.bindTooltip(v.name || v.mmsi, {
-                    permanent: false, direction: 'top',
-                    className: 'ais-tooltip', offset: [0, -10]
-                });
-                aisMarkers[v.mmsi] = m;
-                m.addTo(aisLayer);
-            }
-        });
-        // Remove markers for vessels no longer in view
-        Object.keys(aisMarkers).forEach(function(mmsi) {
-            if (!seen[mmsi]) {
-                aisLayer.removeLayer(aisMarkers[mmsi]);
-                delete aisMarkers[mmsi];
-            }
-        });
-        // Update status indicator
-        var statusEl = document.getElementById('ais-count');
-        if (statusEl) statusEl.textContent = data.count + ' vessels';
-    }).catch(function() {});
-}
-
-function startAISPolling() {
-    if (aisInterval) return;
-    loadAISVessels();
-    aisInterval = setInterval(loadAISVessels, 10000); // Poll every 10s
-    map.on('moveend', loadAISVessels);
-}
-
-function stopAISPolling() {
-    if (aisInterval) { clearInterval(aisInterval); aisInterval = null; }
-}
+function loadAISVessels() {}
+function startAISPolling() {}
+function stopAISPolling() {}
 
 // ═══════════════════════════════════════════════════════
 // DASHBOARD
@@ -566,15 +399,4 @@ document.addEventListener('DOMContentLoaded', function() {
 
     initMap();
     loadDashboard();
-
-    // Check AIS status and auto-enable if streaming
-    fetch('/api/ais/status').then(function(r) { return r.json(); }).then(function(s) {
-        if (s.streaming) {
-            document.getElementById('lyr-ais').checked = true;
-            aisLayer.addTo(map);
-            startAISPolling();
-            var statusEl = document.getElementById('ais-count');
-            if (statusEl) statusEl.textContent = 'Connecting...';
-        }
-    }).catch(function() {});
 });

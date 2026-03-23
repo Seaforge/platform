@@ -149,3 +149,19 @@ def export_table(table):
     rows = db.execute(f"SELECT * FROM {table} ORDER BY rowid").fetchall()
     db.close()
     return jsonify([dict(r) for r in rows])
+import json
+
+from flask import Blueprint, request, jsonify
+
+phase_state = {"currentPhase": "Pre-Tow"}
+
+@bp.route("/phase", methods=["GET"])
+def get_phase():
+    return jsonify(phase_state)
+
+@bp.route("/phase", methods=["POST"])
+def set_phase():
+    data = request.json
+    if "phase" in data:
+        phase_state["currentPhase"] = data["phase"]
+    return jsonify({"status": "ok", "currentPhase": phase_state["currentPhase"]})
