@@ -358,19 +358,109 @@
     <!-- ═══ DRILLS VIEW ═══ -->
     <div class="view" id="view-drills">
         <div class="dashboard">
-            <h2>Drill Management</h2>
+            <h2>F5 — Drill Log</h2>
+            <p style="color:#78909c;margin-bottom:16px;font-size:12px;">SOLAS Chapter III requires regular emergency drills. Quick-log for CTRB sign-off and OOW competency evidence.</p>
+            
             <div class="card-grid">
                 <div class="card">
-                    <h3>Schedule Drill</h3>
-                    <div class="form-row"><label>Type</label><select id="drill-type"><option value="fire">Fire & Emergency</option><option value="abandon_ship">Abandon Ship</option><option value="mob">Man Overboard</option><option value="sopep">SOPEP (Oil Spill)</option><option value="security">Security (ISPS)</option><option value="damage_control">Damage Control</option><option value="custom">Custom</option></select></div>
-                    <div class="form-row"><label>Title</label><input type="text" id="drill-title" placeholder="e.g. Engine room fire drill"></div>
-                    <div class="form-row"><label>Date</label><input type="date" id="drill-date"></div>
-                    <div class="form-row"><label>Scenario</label><textarea id="drill-scenario" placeholder="Describe the drill scenario..."></textarea></div>
-                    <button class="btn" onclick="scheduleDrill()">Schedule</button>
+                    <h3>Quick-Log Drill</h3>
+                    <div class="form-row">
+                        <label>Type</label>
+                        <select id="drill-type">
+                            <option value="abandon_ship">Abandon Ship</option>
+                            <option value="fire">Fire</option>
+                            <option value="mob">Man Overboard</option>
+                            <option value="flooding">Flooding / Damage Control</option>
+                            <option value="oil_spill">Oil Spill (SOPEP)</option>
+                            <option value="security">Security (ISPS)</option>
+                            <option value="medical">Medical Emergency</option>
+                            <option value="anchor">Emergency Anchor</option>
+                            <option value="blackout">Blackout / Power Failure</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                    <div class="form-row">
+                        <label>Date & Time</label>
+                        <input type="datetime-local" id="drill-conducted-at" value="">
+                    </div>
+                    <div class="form-row">
+                        <label>Duration (min)</label>
+                        <input type="number" id="drill-duration" placeholder="30" min="1" max="240">
+                    </div>
+                    <div class="form-row">
+                        <label>Participants</label>
+                        <input type="number" id="drill-participants" placeholder="1" min="1" max="100" value="1">
+                    </div>
+                    <div class="form-row">
+                        <label>Outcome</label>
+                        <select id="drill-outcome">
+                            <option value="satisfactory">Satisfactory</option>
+                            <option value="partial">Partial / Minor Issues</option>
+                            <option value="unsatisfactory">Unsatisfactory</option>
+                        </select>
+                    </div>
+                    <div class="form-row">
+                        <label>Officer in Charge</label>
+                        <input type="text" id="drill-officer" placeholder="Your name / officer">
+                    </div>
+                    <div class="form-row">
+                        <label>CTRB Section Ref</label>
+                        <input type="text" id="drill-ctrb-ref" placeholder="e.g., C5.1.1">
+                    </div>
+                    <div class="form-row">
+                        <label>Notes / Lessons Learned</label>
+                        <textarea id="drill-notes" placeholder="Observations, deficiencies, improvements..."></textarea>
+                    </div>
+                    <button class="btn" onclick="logDrill()">Log Drill</button>
+                    <div style="margin-top:12px;padding:8px;background:#0d2818;border-radius:4px;font-size:11px;color:#66bb6a;">
+                        <strong>SOLAS Frequency:</strong>
+                        <div id="drill-frequency">Select drill type</div>
+                    </div>
                 </div>
-                <div class="card" style="grid-column: span 2;">
-                    <h3>Drill Log</h3>
-                    <div id="drill-list">Loading...</div>
+                
+                <div class="card">
+                    <h3>Recent Drills</h3>
+                    <div style="margin-bottom:12px;">
+                        <select id="drill-filter-type" onchange="loadDrills()" style="width:100%;margin-bottom:8px;">
+                            <option value="">All Types</option>
+                            <option value="abandon_ship">Abandon Ship</option>
+                            <option value="fire">Fire</option>
+                            <option value="mob">Man Overboard</option>
+                            <option value="flooding">Flooding</option>
+                            <option value="oil_spill">Oil Spill</option>
+                            <option value="security">Security</option>
+                            <option value="medical">Medical</option>
+                            <option value="anchor">Anchor</option>
+                            <option value="blackout">Blackout</option>
+                            <option value="other">Other</option>
+                        </select>
+                        <select id="drill-filter-outcome" onchange="loadDrills()" style="width:100%;">
+                            <option value="">All Outcomes</option>
+                            <option value="satisfactory">Satisfactory</option>
+                            <option value="partial">Partial</option>
+                            <option value="unsatisfactory">Unsatisfactory</option>
+                        </select>
+                    </div>
+                    <div id="drill-list" style="max-height:400px;overflow-y:auto;"></div>
+                </div>
+                
+                <div class="card">
+                    <h3>SOLAS Requirements</h3>
+                    <div style="font-size:11px;line-height:1.4;">
+                        <div style="margin-bottom:6px;"><strong>Monthly:</strong> Abandon ship, fire (alternating locations), MOB, flooding/damage control</div>
+                        <div style="margin-bottom:6px;"><strong>Quarterly:</strong> SOPEP (oil spill), ISPS (security)</div>
+                        <div style="margin-bottom:6px;"><strong>As required:</strong> Medical, emergency anchor, blackout, other</div>
+                        <div style="margin-top:12px;color:#4fc3f7;"><strong>CTRB Sign-off:</strong></div>
+                        <div style="margin-left:8px;font-size:10px;">
+                            • C5.1.1 — Fire drill at sea<br>
+                            • C5.1.5 — Person overboard<br>
+                            • C5.1.2-4 — Emergency exercises<br>
+                            • C5.2.1 — Unspecified emergency<br>
+                        </div>
+                        <div style="margin-top:12px;color:#ffa726;font-size:10px;">
+                            Log completed drills here for evidence. Officer in charge must sign physical CTRB.
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

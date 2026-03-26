@@ -358,37 +358,140 @@ function loadTasks() {
 }
 
 // ═══════════════════════════════════════════════════════
-// DRILLS
+// DRILLS - F5 Drill Log
 // ═══════════════════════════════════════════════════════
-function scheduleDrill() {
+function logDrill() {
+    var conductedAt = document.getElementById('drill-conducted-at').value;
+    if (!conductedAt) {
+        // Default to current datetime if not set
+        var now = new Date();
+        conductedAt = now.toISOString().slice(0, 16);
+    }
+    
+    var duration = parseInt(document.getElementById('drill-duration').value);
+    if (!duration || duration < 1) {
+        alert('Please enter a valid duration (minimum 1 minute)');
+        return;
+    }
+    
     api('POST', '/api/training/drills', {
-        date: document.getElementById('drill-date').value || today(),
         type: document.getElementById('drill-type').value,
-        title: document.getElementById('drill-title').value,
-        scenario: document.getElementById('drill-scenario').value,
-        status: 'scheduled'
-    }).then(function() { document.getElementById('drill-title').value = ''; document.getElementById('drill-scenario').value = ''; loadDrills(); });
+        conducted_at: conductedAt,
+        duration_mins: duration,
+        participant_count: parseInt(document.getElementById('drill-participants').value) || 1,
+        outcome: document.getElementById('drill-outcome').value,
+        officer_in_charge: document.getElementById('drill-officer').value || null,
+        notes: document.getElementById('drill-notes').value || null,
+        ctrb_section_ref: document.getElementById('drill-ctrb-ref').value || null
+    }).then(function() {
+        // Clear form
+        document.getElementById('drill-duration').value = '';
+        document.getElementById('drill-participants').value = '1';
+        document.getElementById('drill-officer').value = '';
+        document.getElementById('drill-ctrb-ref').value = '';
+        document.getElementById('drill-notes').value = '';
+        alert('Drill logged!');
+        loadDrills();
+    }).catch(function(err) {
+        console.error('Failed to log drill:', err);
+        alert('Error logging drill');
+    });
 }
 
-function completeDrill(id) {
-    api('PATCH', '/api/training/drills/' + id, { status: 'completed' }).then(loadDrills);
+function updateDrillFrequency() {
+    var type = document.getElementById('drill-type').value;
+    var frequency = {
+        'abandon_ship': 'Monthly (all crew within 24h of departure if >25% new crew)',
+        'fire': 'Monthly (alternating locations on the ship)',
+        'mob': 'Monthly',
+        'flooding': 'Monthly (as part of damage control)',
+        'oil_spill': 'Quarterly (SOPEP)',
+        'security': 'Quarterly (ISPS)',
+        'medical': 'As required',
+        'anchor': 'As required',
+        'blackout': 'As required',
+        'other': 'As required'
+    };
+    document.getElementById('drill-frequency').textContent = frequency[type] || 'Select drill type';
 }
 
 function loadDrills() {
-    api('GET', '/api/training/drills').then(function(drills) {
+    var typeFilter = document.getElementById('drill-filter-type').value;
+    var outcomeFilter = document.getElementById('drill-filter-outcome').value;
+    
+    var url = '/api/training/drills?limit=20';
+    if (typeFilter) url += '&type=' + encodeURIComponent(typeFilter);
+    if (outcomeFilter) url += '&outcome=' + encodeURIComponent(outcomeFilter);
+    
+    api('GET', url).then(function(drills) {
         var html = '';
-        drills.forEach(function(d) {
-            var statusBadge = d.status === 'completed' ? '<span class="badge badge-green">Done</span>' : '<span class="badge badge-amber">Scheduled</span>';
-            html += '<div class="list-item">';
-            html += '<span class="title">' + d.title + '</span>';
-            html += '<span class="meta">' + d.date + '</span>';
-            html += statusBadge;
-            if (d.status !== 'completed') html += ' <button class="btn" style="padding:3px 8px;font-size:10px;" onclick="completeDrill(' + d.id + ')">Complete</button>';
-            html += '</div>';
-        });
-        document.getElementById('drill-list').innerHTML = html || '<p style="color:#78909c;">No drills logged.</p>';
+        if (drills.length === 0) {
+            html = '<p style="color:#78909c;padding:20px;text-align:center;">No drills logged yet.</p>';
+        } else {
+            drills.forEach(function(d) {
+                var conductedDate = new Date(d.conducted_at);
+                var dateStr = conductedDate.toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'numeric'});
+                var timeStr = conductedDate.toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit'});
+                
+                var typeLabels = {
+                    'abandon_ship': 'Abandon Ship',
+                    'fire': 'Fire',
+                    'mob': 'Man Overboard',
+                    'flooding': 'Flooding',
+                    'oil_spill': 'Oil Spill',
+                    'security': 'Security',
+                    'medical': 'Medical',
+                    'anchor': 'Emergency Anchor',
+                    'blackout': 'Blackout',
+                    'other': 'Other'
+                };
+                
+                var outcomeBadges = {
+                    'satisfactory': '<span class="badge badge-green">Satisfactory</span>',
+                    'partial': '<span class="badge badge-amber">Partial</span>',
+                    'unsatisfactory': '<span class="badge badge-red">Unsatisfactory</span>'
+                };
+                
+                html += '<div class="list-item">';
+                html += '<div style="flex:1;">';
+                html += '<div style="display:flex;justify-content:space-between;align-items:center;">';
+                html += '<strong>' + (typeLabels[d.type] || d.type) + '</strong>';
+                html += '<span style="font-size:11px;color:#78909c;">' + dateStr + ' ' + timeStr + '</span>';
+                html += '</div>';
+                html += '<div style="font-size:11px;color:#b0bec5;margin-top:4px;">';
+                html += d.officer_in_charge ? 'Officer: ' + d.officer_in_charge + ' • ' : '';
+                html += d.duration_mins + ' min • ' + d.participant_count + ' participant' + (d.participant_count !== 1 ? 's' : '');
+                html += '</div>';
+                if (d.ctrb_section_ref) {
+                    html += '<div style="font-size:10px;color:#4fc3f7;margin-top:2px;">CTRB: ' + d.ctrb_section_ref + '</div>';
+                }
+                if (d.notes) {
+                    html += '<div style="font-size:11px;color:#90a4ae;margin-top:4px;font-style:italic;">' + d.notes + '</div>';
+                }
+                html += '</div>';
+                html += '<div style="margin-left:8px;">' + (outcomeBadges[d.outcome] || '') + '</div>';
+                html += '</div>';
+            });
+        }
+        document.getElementById('drill-list').innerHTML = html;
+    }).catch(function(err) {
+        console.error('Failed to load drills:', err);
+        document.getElementById('drill-list').innerHTML = '<p style="color:#ef5350;">Error loading drills</p>';
     });
 }
+
+// Initialize drill type frequency display
+document.addEventListener('DOMContentLoaded', function() {
+    var drillTypeSelect = document.getElementById('drill-type');
+    if (drillTypeSelect) {
+        drillTypeSelect.addEventListener('change', updateDrillFrequency);
+        // Set default datetime to now
+        var now = new Date();
+        var nowLocal = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
+        document.getElementById('drill-conducted-at').value = nowLocal.toISOString().slice(0, 16);
+        updateDrillFrequency();
+    }
+});
 
 // ═══════════════════════════════════════════════════════
 // LIVE AIS (Placeholder)

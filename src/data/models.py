@@ -104,15 +104,20 @@ CREATE TABLE IF NOT EXISTS ctrb_tasks (
 
 CREATE TABLE IF NOT EXISTS drills (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    date TEXT NOT NULL,
+    conducted_at TEXT NOT NULL,             -- ISO datetime (server-enforced)
     type TEXT NOT NULL,                     -- fire | abandon_ship | mob | sopep | security | damage_control | custom
     title TEXT NOT NULL,
     scenario TEXT,
-    participants TEXT,                      -- comma-separated names or count
-    duration_min INTEGER,
+    duration_mins INTEGER,
+    participant_count INTEGER,
+    participants TEXT,                      -- comma-separated names
+    officer_in_charge TEXT NOT NULL,        -- required for ISM
+    outcome TEXT,                           -- pass | needs_improvement | failed
     lessons_learned TEXT,
+    ctrb_section_ref TEXT,
     next_drill_due TEXT,                    -- ISO date
-    status TEXT DEFAULT 'scheduled',        -- scheduled | completed | cancelled
+    status TEXT DEFAULT 'completed',        -- completed | cancelled
+    record_hash TEXT,                       -- SHA-256 integrity hash
     created_at TEXT DEFAULT (datetime('now'))
 );
 

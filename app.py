@@ -3,26 +3,30 @@
 import os
 from flask import Flask
 from src.data.models import init_db
+from src.data.vault_models import init_vault_db
 
 
 def create_app():
     app = Flask(__name__, static_folder="static", template_folder="templates")
     app.secret_key = os.environ.get("SEAFORGE_SECRET_KEY", "dev-key-change-me")
 
-    # Initialize database
+    # Initialize databases
     with app.app_context():
         init_db()
+        init_vault_db()
 
     # Register API blueprints
     from src.api.navigation import bp as nav_bp
     from src.api.wellbeing import bp as wellbeing_bp
     from src.api.training import bp as training_bp
     from src.api.ops import bp as ops_bp
+    from src.api.compliance import compliance_bp
 
     app.register_blueprint(nav_bp)
     app.register_blueprint(wellbeing_bp)
     app.register_blueprint(training_bp)
     app.register_blueprint(ops_bp)
+    app.register_blueprint(compliance_bp)
 
     # Main page — serve the maritime intelligence dashboard
     @app.route("/")
