@@ -1,13 +1,80 @@
-"""Training API — COLREGS scoring, CTRB tracking, drill management."""
+"""Training API — COLREGS scoring, CTRB tracking, drill management.
+
+Uses seaforge_colregs library for COLREGS scenario data and encounter classification.
+"""
 
 from flask import Blueprint, request, jsonify
 from datetime import datetime
 from ..data.models import get_db
+try:
+    from seaforge_colregs import (
+        get_scenario,
+        get_categories,
+        classify_encounter,
+        compute_cpa_tcpa,
+    )
+except ImportError:
+    # Fallback to local modules if seaforge_colregs not installed
+    from ..core.colregs import classify_encounter, compute_cpa_tcpa
+    from ..data.lights_db import LIGHTS_DB
+
+    def get_categories():
+        """Get all COLREGS training categories from local LIGHTS_DB."""
+        categories = set(s.get("category") for s in LIGHTS_DB)
+        return list(sorted(categories))
+
+    def get_scenario(category=None, difficulty=None, random=False):
+        """Get a COLREGS training scenario from local LIGHTS_DB.
+
+        Args:
+            category: Filter by category (lights, encounters, sound_signals_fog, etc.)
+            difficulty: Filter by difficulty level (1-3)
+            random: If True, return a random scenario
+
+        Returns:
+            Scenario dict or list of scenarios
+        """
+        result = LIGHTS_DB
+        if category:
+            result = [s for s in result if s.get("category") == category]
+        if difficulty:
+            result = [s for s in result if s.get("difficulty") == difficulty]
+        if random and result:
+            import random as _random
+            return _random.choice(result)
+        return result
 
 bp = Blueprint("training", __name__, url_prefix="/api/training")
 
 
 # ── COLREGS Scores ───────────────────────────────────────────
+
+@bp.route("/colregs-categories", methods=["GET"])
+def get_colregs_categories():
+    """Get all available COLREGS training categories.
+
+    Returns list from seaforge_colregs library.
+    """
+    categories = get_categories()
+    return jsonify({"categories": categories})
+
+
+@bp.route("/colregs-scenario", methods=["GET"])
+def get_colregs_scenario():
+    """Get a COLREGS training scenario from the library.
+
+    Query params:
+        category: Filter by category (lights, encounters, sound_signals_fog, etc.)
+        difficulty: Filter by difficulty level (1-3)
+        random: If "true", return a single random scenario instead of all matching
+    """
+    category = request.args.get("category")
+    difficulty = request.args.get("difficulty", type=int)
+    random_mode = request.args.get("random", "").lower() == "true"
+
+    scenario = get_scenario(category=category, difficulty=difficulty, random=random_mode)
+    return jsonify({"scenario": scenario})
+
 
 @bp.route("/colregs-scores", methods=["GET"])
 def get_scores():
@@ -15,6 +82,32 @@ def get_scores():
     rows = db.execute("SELECT * FROM colregs_scores ORDER BY date DESC LIMIT 50").fetchall()
     db.close()
     return jsonify([dict(r) for r in rows])
+
+
+@bp.route("/colregs-encounter", methods=["POST"])
+def analyze_encounter():
+    """Classify an encounter between two vessels using seaforge_colregs library.
+
+    Body: {
+        own: {cog: float, ...},
+        target: {cog: float, ...},
+        rel_bearing: float (0-360)
+    }
+
+    Returns: {situation, role, rule, action}
+    """
+    data = request.json
+    own_cog = data["own"]["cog"]
+    target_cog = data["target"]["cog"]
+    rel_bearing = data["rel_bearing"]
+
+    situation, role, rule, action = classify_encounter(own_cog, target_cog, rel_bearing)
+    return jsonify({
+        "situation": situation,
+        "role": role,
+        "rule": rule,
+        "action": action
+    })
 
 
 @bp.route("/colregs-scores", methods=["POST"])

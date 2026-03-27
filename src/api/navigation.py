@@ -1,11 +1,31 @@
 """Navigation API — COLREGS, fleet, AIS, MOB endpoints."""
 
 from flask import Blueprint, request, jsonify
-from ..core.colregs import classify_encounter, compute_cpa_tcpa, bearing_to, range_nm, relative_bearing
+try:
+    from seaforge_colregs import classify_encounter, compute_cpa_tcpa, bearing_to, range_nm, relative_bearing, get_scenario, load_scenarios
+except ImportError:
+    from ..core.colregs import classify_encounter, compute_cpa_tcpa, bearing_to, range_nm, relative_bearing
+    from ..data.lights_db import LIGHTS_DB
+
+    def get_scenario(category=None, difficulty=None, random=False):
+        """Fallback to local LIGHTS_DB if library not available."""
+        result = LIGHTS_DB
+        if category:
+            result = [s for s in result if s["category"] == category]
+        if difficulty:
+            result = [s for s in result if s.get("difficulty") == difficulty]
+        if random and result:
+            import random as _random
+            return _random.choice(result)
+        return result
+
+    def load_scenarios():
+        """Fallback to local LIGHTS_DB if library not available."""
+        return LIGHTS_DB
+
 from ..core.ais import get_vessels, get_vessel_count
 from ..core.mob import create_mob_event, calculate_datum, generate_search_pattern, get_gmdss_procedure
 from ..data.fleet_db import FLEET_DB
-from ..data.lights_db import LIGHTS_DB
 
 bp = Blueprint("navigation", __name__, url_prefix="/api")
 
@@ -60,19 +80,21 @@ def get_fleet_company(company):
 def get_lights():
     """Get COLREGS training scenarios.
 
-    Query params: category, difficulty (1-3), random (count)
+    Query params: category, difficulty (1-3), random (true|false)
     """
-    result = LIGHTS_DB
     category = request.args.get("category")
-    if category:
-        result = [s for s in result if s["category"] == category]
     difficulty = request.args.get("difficulty", type=int)
-    if difficulty:
-        result = [s for s in result if s.get("difficulty") == difficulty]
-    count = request.args.get("random", type=int)
-    if count and count < len(result):
-        import random
-        result = random.sample(result, count)
+    random_choice = request.args.get("random", "").lower() == "true"
+
+    # Use library function (or fallback to local)
+    if random_choice:
+        result = get_scenario(category=category, difficulty=difficulty, random=True)
+        result = [result] if result else []
+    else:
+        result = get_scenario(category=category, difficulty=difficulty, random=False)
+        if not isinstance(result, list):
+            result = [result] if result else []
+
     return jsonify(result)
 
 

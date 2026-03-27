@@ -1,0 +1,71 @@
+[build-system]
+requires = ["setuptools>=45", "wheel", "setuptools_scm[toml]>=6.2"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "seaforge-colregs"
+version = "0.1.0a1"
+description = "Free, open-source COLREGS classification engine and training scenarios for Python. Zero external dependencies."
+readme = "README.md"
+license = {text = "MIT"}
+authors = [
+    {name = "Arne", email = "arne@openclaw.ai"}
+]
+keywords = ["colregs", "maritime", "navigation", "training", "safety"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Education",
+    "License :: OSI Approved :: MIT License",
+    "Natural Language :: English",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Education",
+    "Topic :: Scientific/Engineering :: Physics",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+requires-python = ">=3.8"
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "black>=23.0",
+    "isort>=5.0",
+    "flake8>=6.0",
+    "mypy>=1.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/seaforge-maritime/seaforge-colregs"
+Documentation = "https://seaforge-maritime.org/colregs"
+Repository = "https://github.com/seaforge-maritime/seaforge-colregs.git"
+"Bug Tracker" = "https://github.com/seaforge-maritime/seaforge-colregs/issues"
+Changelog = "https://github.com/seaforge-maritime/seaforge-colregs/blob/main/CHANGELOG.md"
+
+[tool.setuptools]
+packages = ["seaforge_colregs"]
+
+[tool.setuptools.package-data]
+seaforge_colregs = ["data/*.json"]
+
+[tool.black]
+line-length = 100
+target-version = ['py38']
+
+[tool.isort]
+profile = "black"
+line_length = 100
+skip_glob = ["*/migrations/*"]
+
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
