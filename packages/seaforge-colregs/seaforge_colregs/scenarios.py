@@ -1,9 +1,9 @@
-"""COLREGS training scenarios loader — STCW Table A-II/1 alignment.
+"""COLREGS training scenarios loader for STCW Table A-II/1-aligned content.
 
-This module provides access to 98 COLREGS training scenarios covering all 10
-mandatory categories: lights, day_shapes, encounters, sound_signals_maneuvering,
-sound_signals_fog, restricted_visibility, tss, narrow_channels, general_rules,
-and responsibilities.
+This module provides access to 95 COLREGS training scenarios covering all 10
+mandatory categories: lights, day_shapes, encounters,
+sound_signals_maneuvering, sound_signals_fog, restricted_visibility, tss,
+narrow_channels, general_rules, and responsibilities.
 
 Scenarios are sourced from Popeye OOW/SAR workspace and aligned with:
 - IMO STCW Table A-II/1 (Competence requirements for OOW)
@@ -14,10 +14,10 @@ The data is stored as JSON in seaforge_colregs/data/scenarios.json for
 easy integration with web frontends, mobile apps, and training engines.
 """
 
-import json
 import os
-import random
-from typing import Optional, List, Dict, Any
+import json
+import random as random_module
+from typing import Any, Dict, List, Optional, cast
 
 
 def _load_scenarios_data() -> List[Dict[str, Any]]:
@@ -30,14 +30,10 @@ def _load_scenarios_data() -> List[Dict[str, Any]]:
         FileNotFoundError: If scenarios.json is not found.
         json.JSONDecodeError: If JSON is malformed.
     """
-    scenarios_path = os.path.join(
-        os.path.dirname(__file__),
-        'data',
-        'scenarios.json'
-    )
+    scenarios_path = os.path.join(os.path.dirname(__file__), "data", "scenarios.json")
 
-    with open(scenarios_path, 'r', encoding='utf-8') as f:
-        return json.load(f)
+    with open(scenarios_path, "r", encoding="utf-8") as f:
+        return cast(List[Dict[str, Any]], json.load(f))
 
 
 # Module-level cache (lazy-loaded on first access)
@@ -53,7 +49,7 @@ def _get_scenarios() -> List[Dict[str, Any]]:
 
 
 def load_scenarios() -> List[Dict[str, Any]]:
-    """Load and return all 98 COLREGS training scenarios.
+    """Load and return all 95 COLREGS training scenarios.
 
     Returns:
         List of scenario dictionaries, each with keys:
@@ -66,7 +62,7 @@ def load_scenarios() -> List[Dict[str, Any]]:
     Example:
         >>> scenarios = load_scenarios()
         >>> len(scenarios)
-        98
+        95
         >>> scenarios[0]['rule']
         'Rule 23(a)'
     """
@@ -101,19 +97,21 @@ def get_categories() -> List[str]:
         10
     """
     scenarios = _get_scenarios()
-    categories = set(s['category'] for s in scenarios)
+    categories = set(s["category"] for s in scenarios)
     return sorted(list(categories))
 
 
 def get_scenario(
     category: Optional[str] = None,
     difficulty: Optional[int] = None,
-    random_choice: bool = False
+    random_choice: bool = False,
+    *,
+    random: Optional[bool] = None,
 ) -> Optional[Dict[str, Any]]:
     """Get a scenario, optionally filtered by category and/or difficulty.
 
     Filters are applied conjunctively (AND). Returns first matching scenario
-    unless random_choice=True.
+    unless `random_choice=True`.
 
     Args:
         category: Filter by category name. If None, all categories included.
@@ -121,7 +119,8 @@ def get_scenario(
         difficulty: Filter by difficulty level (1, 2, or 3). If None, all
                    levels included.
         random_choice: If True, return a random matching scenario instead of
-                      the first.
+            the first.
+        random: Backward-compatible alias for `random_choice`.
 
     Returns:
         A scenario dictionary matching the criteria, or None if no match found.
@@ -138,15 +137,18 @@ def get_scenario(
         >>> s = get_scenario(category='encounters', random_choice=True)
         >>> s['scenario']  # Random encounter scenario
 
-        >>> all_scenarios = get_scenario()  # Returns first overall (use load_scenarios() instead)
+        >>> first = get_scenario()
+        >>> first['category']
     """
+    if random is not None:
+        random_choice = random
+
     # Validate inputs
     if category is not None:
         valid_categories = get_categories()
         if category not in valid_categories:
             raise ValueError(
-                f"Invalid category '{category}'. "
-                f"Must be one of: {', '.join(valid_categories)}"
+                f"Invalid category '{category}'. " f"Must be one of: {', '.join(valid_categories)}"
             )
 
     if difficulty is not None:
@@ -158,19 +160,19 @@ def get_scenario(
     matches = scenarios
 
     if category is not None:
-        matches = [s for s in matches if s['category'] == category]
+        matches = [s for s in matches if s["category"] == category]
 
     if difficulty is not None:
-        matches = [s for s in matches if s['difficulty'] == difficulty]
+        matches = [s for s in matches if s["difficulty"] == difficulty]
 
     # Return result
     if not matches:
         return None
 
     if random_choice:
-        return random.choice(matches)
-    else:
-        return matches[0]
+        return random_module.choice(matches)
+
+    return matches[0]
 
 
 def get_scenarios_by_category(category: str) -> List[Dict[str, Any]]:
@@ -195,19 +197,15 @@ def get_scenarios_by_category(category: str) -> List[Dict[str, Any]]:
     valid_categories = get_categories()
     if category not in valid_categories:
         raise ValueError(
-            f"Invalid category '{category}'. "
-            f"Must be one of: {', '.join(valid_categories)}"
+            f"Invalid category '{category}'. " f"Must be one of: {', '.join(valid_categories)}"
         )
 
     scenarios = _get_scenarios()
-    matches = [s for s in scenarios if s['category'] == category]
-    return sorted(matches, key=lambda s: s['difficulty'])
+    matches = [s for s in scenarios if s["category"] == category]
+    return sorted(matches, key=lambda s: s["difficulty"])
 
 
-def count_scenarios(
-    category: Optional[str] = None,
-    difficulty: Optional[int] = None
-) -> int:
+def count_scenarios(category: Optional[str] = None, difficulty: Optional[int] = None) -> int:
     """Count scenarios matching optional filters.
 
     Args:
@@ -219,18 +217,17 @@ def count_scenarios(
 
     Example:
         >>> count_scenarios()
-        98
+        95
         >>> count_scenarios(category='lights')
         20
         >>> count_scenarios(difficulty=1)
-        35
+        37
     """
     if category is not None:
         valid_categories = get_categories()
         if category not in valid_categories:
             raise ValueError(
-                f"Invalid category '{category}'. "
-                f"Must be one of: {', '.join(valid_categories)}"
+                f"Invalid category '{category}'. " f"Must be one of: {', '.join(valid_categories)}"
             )
 
     if difficulty is not None:
@@ -241,10 +238,10 @@ def count_scenarios(
     matches = scenarios
 
     if category is not None:
-        matches = [s for s in matches if s['category'] == category]
+        matches = [s for s in matches if s["category"] == category]
 
     if difficulty is not None:
-        matches = [s for s in matches if s['difficulty'] == difficulty]
+        matches = [s for s in matches if s["difficulty"] == difficulty]
 
     return len(matches)
 
@@ -273,17 +270,16 @@ def get_difficulty_breakdown(category: Optional[str] = None) -> Dict[int, int]:
         valid_categories = get_categories()
         if category not in valid_categories:
             raise ValueError(
-                f"Invalid category '{category}'. "
-                f"Must be one of: {', '.join(valid_categories)}"
+                f"Invalid category '{category}'. " f"Must be one of: {', '.join(valid_categories)}"
             )
 
     result = {1: 0, 2: 0, 3: 0}
 
     scenarios = _get_scenarios()
     if category is not None:
-        scenarios = [s for s in scenarios if s['category'] == category]
+        scenarios = [s for s in scenarios if s["category"] == category]
 
     for scenario in scenarios:
-        result[scenario['difficulty']] += 1
+        result[scenario["difficulty"]] += 1
 
     return result

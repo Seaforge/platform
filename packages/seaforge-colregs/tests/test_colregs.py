@@ -4,9 +4,15 @@ import pytest
 from seaforge_colregs import (
     bearing_to,
     classify_encounter,
+    count_scenarios,
     compute_cpa_tcpa,
+    get_categories,
+    get_difficulty_breakdown,
     range_nm,
     relative_bearing,
+    get_scenario,
+    get_scenarios_by_category,
+    load_scenarios,
 )
 
 
@@ -63,7 +69,11 @@ class TestClassifyEncounter:
         situation, role, rule, _ = classify_encounter(0, 0, 5)
         # The target sees us abaft their beam
         # This depends on the reciprocal bearing check
-        assert rule == "Rule 13" or situation in ("head-on", "crossing", "overtaking")
+        assert rule == "Rule 13" or situation in (
+            "head-on",
+            "crossing",
+            "overtaking",
+        )
 
     def test_returns_four_elements(self):
         result = classify_encounter(0, 180, 1)
@@ -77,33 +87,32 @@ class TestComputeCpaTcpa:
     def test_head_on_collision(self):
         # Two vessels heading straight at each other
         cpa, tcpa, _, _ = compute_cpa_tcpa(
-            51.0, 1.0, 0, 10,    # own: heading N at 10 kts
-            51.1, 1.0, 180, 10   # target: heading S at 10 kts
+            51.0,
+            1.0,
+            0,
+            10,  # own: heading N at 10 kts
+            51.1,
+            1.0,
+            180,
+            10,  # target: heading S at 10 kts
         )
         assert cpa < 0.5  # Very close CPA
-        assert tcpa > 0   # Positive TCPA
+        assert tcpa > 0  # Positive TCPA
 
     def test_parallel_same_direction(self):
         # Two vessels going same direction, offset by 1nm
-        cpa, tcpa, _, _ = compute_cpa_tcpa(
-            51.0, 1.0, 0, 10,
-            51.0, 1.0167, 0, 10  # ~1nm east
-        )
+        cpa, tcpa, _, _ = compute_cpa_tcpa(51.0, 1.0, 0, 10, 51.0, 1.0167, 0, 10)  # ~1nm east
         # Parallel courses: CPA should be roughly the initial distance
         assert cpa > 0.5
 
     def test_stationary_vessels(self):
-        cpa, tcpa, _, _ = compute_cpa_tcpa(
-            51.0, 1.0, 0, 0,
-            51.01, 1.0, 0, 0
-        )
+        cpa, tcpa, _, _ = compute_cpa_tcpa(51.0, 1.0, 0, 0, 51.01, 1.0, 0, 0)
         assert tcpa == 999  # Sentinel for no relative motion
 
     def test_diverging(self):
         # Vessels moving apart
         cpa, tcpa, _, _ = compute_cpa_tcpa(
-            51.0, 1.0, 180, 10,   # heading south
-            51.1, 1.0, 0, 10      # heading north
+            51.0, 1.0, 180, 10, 51.1, 1.0, 0, 10  # heading south  # heading north
         )
         assert tcpa == 0  # Already diverging
 
@@ -150,20 +159,16 @@ class TestScenarios:
     """Tests for training scenarios loading and filtering."""
 
     def test_load_scenarios_returns_list(self):
-        """Verify load_scenarios() returns a list."""
-        # Mock scenarios data for testing
-        # In production, this would load from JSON
-        scenarios = self._get_test_scenarios()
+        scenarios = load_scenarios()
         assert isinstance(scenarios, list)
 
     def test_scenarios_count(self):
-        """Verify scenarios list has expected length."""
-        scenarios = self._get_test_scenarios()
-        assert len(scenarios) == 98
+        scenarios = load_scenarios()
+        assert len(scenarios) == 95
+        assert count_scenarios() == 95
 
     def test_scenario_structure(self):
-        """Verify each scenario has required keys."""
-        scenarios = self._get_test_scenarios()
+        scenarios = load_scenarios()
         required_keys = {"scenario", "answer", "rule", "category", "difficulty"}
 
         for scenario in scenarios:
@@ -171,38 +176,45 @@ class TestScenarios:
             for key in required_keys:
                 assert key in scenario, f"Scenario missing required key: {key}"
 
-    def test_scenario_by_category_filtering(self):
-        """Verify get_scenario() can filter by category."""
-        scenarios = self._get_test_scenarios()
+    def test_get_categories_returns_expected_categories(self):
+        assert get_categories() == [
+            "day_shapes",
+            "encounters",
+            "general_rules",
+            "lights",
+            "narrow_channels",
+            "responsibilities",
+            "restricted_visibility",
+            "sound_signals_fog",
+            "sound_signals_maneuvering",
+            "tss",
+        ]
 
-        # Get all unique categories
-        categories = set(s.get("category") for s in scenarios)
-        assert len(categories) > 0, "Should have at least one category"
+    def test_get_scenario_filters_by_category_and_difficulty(self):
+        scenario = get_scenario(category="lights", difficulty=1)
+        assert scenario is not None
+        assert scenario["category"] == "lights"
+        assert scenario["difficulty"] == 1
 
-        # Test filtering by first category
-        sample_category = list(categories)[0]
-        filtered = [s for s in scenarios if s.get("category") == sample_category]
-        assert len(filtered) > 0, f"Should find scenarios with category {sample_category}"
-        assert all(s.get("category") == sample_category for s in filtered)
+    def test_get_scenario_supports_random_alias(self):
+        scenario = get_scenario(category="encounters", random=True)
+        assert scenario is not None
+        assert scenario["category"] == "encounters"
 
-    def _get_test_scenarios(self):
-        """Helper: Return a list of mock scenarios for testing.
+    def test_get_scenarios_by_category_returns_only_matches(self):
+        scenarios = get_scenarios_by_category("lights")
+        assert scenarios
+        assert all(scenario["category"] == "lights" for scenario in scenarios)
 
-        In production, this would load scenarios from JSON file.
-        """
-        # Generate 98 mock scenarios for testing
-        scenarios = []
-        categories = ["head-on", "crossing", "overtaking", "lights", "shapes"]
-        difficulties = ["easy", "medium", "hard"]
-        rules = ["Rule 13", "Rule 14", "Rule 15", "Rule 17", "Rule 20-30"]
+    def test_get_difficulty_breakdown_matches_total(self):
+        breakdown = get_difficulty_breakdown()
+        assert set(breakdown) == {1, 2, 3}
+        assert sum(breakdown.values()) == 95
 
-        for i in range(98):
-            scenarios.append({
-                "scenario": f"Scenario {i+1}",
-                "answer": "give-way" if i % 2 == 0 else "stand-on",
-                "rule": rules[i % len(rules)],
-                "category": categories[i % len(categories)],
-                "difficulty": difficulties[i % len(difficulties)],
-            })
+    def test_invalid_category_raises_value_error(self):
+        with pytest.raises(ValueError):
+            get_scenario(category="not-a-category")
 
-        return scenarios
+    def test_invalid_difficulty_raises_value_error(self):
+        with pytest.raises(ValueError):
+            get_scenario(difficulty=4)

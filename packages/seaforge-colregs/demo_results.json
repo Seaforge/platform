@@ -1,0 +1,43 @@
+{
+  "timestamp": 1774651113.8537042,
+  "total_demos": 5,
+  "passed": 5,
+  "failed": 0,
+  "demos": [
+    {
+      "name": "Demo 1: Head-on Encounter",
+      "script": "demo1.py",
+      "duration_seconds": 0.05,
+      "passed": true,
+      "returncode": 0
+    },
+    {
+      "name": "Demo 2: Scenario Database",
+      "script": "demo2.py",
+      "duration_seconds": 0.06,
+      "passed": true,
+      "returncode": 0
+    },
+    {
+      "name": "Demo 3: Interactive Trainer",
+      "script": "demo3.py",
+      "duration_seconds": 0.04,
+      "passed": true,
+      "returncode": 0
+    },
+    {
+      "name": "Demo 4: Bridge Simulator",
+      "script": "demo4.py",
+      "duration_seconds": 0.04,
+      "passed": true,
+      "returncode": 0
+    },
+    {
+      "name": "Demo 5: OOW DP Training",
+      "script": "demo5.py",
+      "duration_seconds": 0.04,
+      "passed": true,
+      "returncode": 0
+    }
+  ]
+}

@@ -25,7 +25,14 @@ from .engine import (
     range_nm,
     relative_bearing,
 )
-from .scenarios import get_scenario, get_categories, load_scenarios
+from .scenarios import (
+    count_scenarios,
+    get_categories,
+    get_difficulty_breakdown,
+    get_scenario,
+    get_scenarios_by_category,
+    load_scenarios,
+)
 
 __all__ = [
     "classify_encounter",
@@ -34,6 +41,9 @@ __all__ = [
     "range_nm",
     "relative_bearing",
     "get_scenario",
+    "get_scenarios_by_category",
     "get_categories",
+    "count_scenarios",
+    "get_difficulty_breakdown",
     "load_scenarios",
 ]

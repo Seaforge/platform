@@ -2,7 +2,11 @@
 
 **The only free, open-source COLREGS classification engine.**
 
-COLREGS (Collision Avoidance Rules) knowledge is required for every STCW (Standards of Training, Certification and Watchkeeping) certificate globally. Until now, no open-source reference implementation existed. `seaforge-colregs` fills that gap—pure geometry, zero external dependencies, 98 training scenarios.
+COLREGS (Collision Avoidance Rules) knowledge is required for every STCW
+(Standards of Training, Certification and Watchkeeping) certificate globally.
+Until now, no open-source reference implementation existed.
+`seaforge-colregs` fills that gap: pure geometry, zero external dependencies,
+and 95 training scenarios.
 
 ## Quick Start
 
@@ -38,7 +42,7 @@ print(scenario['scenario'])
 - Haversine distance calculation in nautical miles
 
 **Training Scenarios**
-- 98 vetted scenarios across 10 STCW categories
+- 95 vetted scenarios across 10 STCW categories
 - Covers lights, shapes, sound signals, special vessels
 - Calibrated difficulty levels for cadet progression
 
@@ -138,36 +142,37 @@ distance = range_nm(51.4769, 1.3912, 51.5074, 0.1278)  # Dover to Greenwich
 print(f"Distance: {distance:.1f} nm")  # ~20.5 nm
 ```
 
-### `get_scenario(category=None, difficulty=None, random=False)`
+### `get_scenario(category=None, difficulty=None, random_choice=False, random=None)`
 
 Retrieve a training scenario.
 
 **Parameters:**
-- `category` (str, optional): STCW category (e.g., `"sailing"`, `"power"`, `"lights"`, `"sound_signals"`)
-- `difficulty` (str, optional): `"easy"`, `"medium"`, or `"hard"`
-- `random` (bool): If True, return a random scenario matching filters; otherwise return first match
+- `category` (str, optional): One of the packaged categories such as `"lights"`, `"encounters"`, or `"tss"`
+- `difficulty` (int, optional): `1`, `2`, or `3`
+- `random_choice` (bool): If True, return a random scenario matching filters
+- `random` (bool, optional): Backward-compatible alias for `random_choice`
 
 **Returns:** dict
 - `scenario` (str) – descriptive text of encounter
+- `answer` (str) – expected answer text
+- `rule` (str) – COLREGS rule reference
 - `category` (str) – training category
-- `difficulty` (str) – difficulty level
-- `question` (str) – what to determine (e.g., "What is your rule and action?")
-- `answer` (dict) – correct response(s) with `rule`, `situation`, `role`, `action`
+- `difficulty` (int) – difficulty level from 1 to 3
 
 **Example:**
 ```python
-scenario = get_scenario(category="power", difficulty="medium", random=True)
+scenario = get_scenario(category="lights", difficulty=1, random=True)
 print(scenario['scenario'])
-print(scenario['question'])
-print(scenario['answer']['rule'])  # e.g., "Rule 15"
+print(scenario['answer'])
+print(scenario['rule'])  # e.g., "Rule 23(a)"
 ```
 
 ### `load_scenarios()`
 
-Load all 98 scenarios into memory.
+Load all 95 scenarios into memory.
 
 **Returns:** list of dict
-- Each dict has keys: `scenario`, `category`, `difficulty`, `question`, `answer`
+- Each dict has keys: `scenario`, `answer`, `rule`, `category`, `difficulty`
 
 **Example:**
 ```python
@@ -213,16 +218,11 @@ Want to add scenarios for ICC regulations, regional rules, or special cases? [Su
 **Scenario format:**
 ```python
 {
-    "scenario": "Small vessel (4 kts) and large ship (15 kts) on reciprocal courses...",
-    "category": "power",
-    "difficulty": "medium",
-    "question": "What is your rule and action?",
-    "answer": {
-        "rule": "Rule 14",
-        "situation": "head-on",
-        "role": "give-way",
-        "action": "Alter course to starboard."
-    }
+    "scenario": "You see TWO masthead lights (vertical), sidelights, and a sternlight.",
+    "answer": "Power-driven vessel underway, length 50m or more (Rule 23a).",
+    "rule": "Rule 23(a)",
+    "category": "lights",
+    "difficulty": 1,
 }
 ```
 

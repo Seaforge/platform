@@ -1,0 +1,2118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🌊 SeaForge COLREGS - Interactive Demo</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='75' font-size='75'>⚓</text></svg>" type="image/svg+xml">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #0f1419 0%, #1a2332 100%);
+            color: #e0e6ed;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: rgba(15, 20, 25, 0.95);
+            border-radius: 12px;
+            border: 1px solid #2a3f5f;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        header {
+            background: linear-gradient(135deg, #1a3a52 0%, #0f1419 100%);
+            padding: 40px 30px;
+            text-align: center;
+            border-bottom: 2px solid #2a5f8f;
+        }
+
+        h1 {
+            font-size: 2.2em;
+            margin-bottom: 10px;
+            color: #4da6ff;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+        }
+
+        .tagline {
+            color: #a0b0c0;
+            font-size: 0.95em;
+            margin-top: 5px;
+        }
+
+        .tabs {
+            display: flex;
+            background: #1a2332;
+            border-bottom: 1px solid #2a3f5f;
+            overflow-x: auto;
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 15px 20px;
+            border: none;
+            background: transparent;
+            color: #a0b0c0;
+            cursor: pointer;
+            font-size: 0.95em;
+            font-weight: 500;
+            transition: all 0.3s;
+            border-bottom: 3px solid transparent;
+            white-space: nowrap;
+        }
+
+        .tab-btn:hover {
+            background: rgba(77, 166, 255, 0.1);
+            color: #4da6ff;
+        }
+
+        .tab-btn.active {
+            color: #4da6ff;
+            border-bottom-color: #4da6ff;
+            background: rgba(77, 166, 255, 0.05);
+        }
+
+        .tab-content {
+            display: none;
+            padding: 40px 30px;
+            animation: fadeIn 0.3s;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .scenario-card {
+            background: rgba(42, 63, 95, 0.3);
+            border: 1px solid #2a5f8f;
+            border-radius: 8px;
+            padding: 25px;
+            margin-bottom: 20px;
+        }
+
+        .scenario-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        .category {
+            background: rgba(77, 166, 255, 0.2);
+            color: #4da6ff;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: 600;
+        }
+
+        .difficulty {
+            color: #ffa500;
+            font-weight: 600;
+        }
+
+        .question {
+            font-size: 1.1em;
+            line-height: 1.6;
+            margin: 20px 0;
+            color: #e0e6ed;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: 500;
+            color: #a0b0c0;
+        }
+
+        input[type="text"],
+        input[type="number"],
+        select,
+        textarea {
+            width: 100%;
+            padding: 12px 15px;
+            background: rgba(26, 35, 50, 0.5);
+            border: 1px solid #2a5f8f;
+            border-radius: 6px;
+            color: #e0e6ed;
+            font-size: 0.95em;
+            font-family: inherit;
+            transition: border-color 0.3s;
+        }
+
+        input:focus,
+        select:focus,
+        textarea:focus {
+            outline: none;
+            border-color: #4da6ff;
+            box-shadow: 0 0 0 3px rgba(77, 166, 255, 0.1);
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 25px;
+        }
+
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.95em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #4da6ff 0%, #2a7dd7 100%);
+            color: white;
+            flex: 1;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(77, 166, 255, 0.3);
+        }
+
+        .btn-primary:disabled {
+            background: #555;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary {
+            background: rgba(77, 166, 255, 0.2);
+            color: #4da6ff;
+            flex: 1;
+        }
+
+        .btn-secondary:hover {
+            background: rgba(77, 166, 255, 0.3);
+        }
+
+        .feedback {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 6px;
+            display: none;
+        }
+
+        .feedback.correct {
+            background: rgba(76, 175, 80, 0.2);
+            border: 1px solid #4caf50;
+            color: #a8e6a8;
+            display: block;
+        }
+
+        .feedback.incorrect {
+            background: rgba(244, 67, 54, 0.2);
+            border: 1px solid #f44336;
+            color: #ff8a80;
+            display: block;
+        }
+
+        .results {
+            text-align: center;
+            padding: 30px;
+        }
+
+        .score {
+            font-size: 3em;
+            font-weight: 700;
+            color: #4da6ff;
+            margin: 20px 0;
+        }
+
+        .accuracy {
+            font-size: 1.5em;
+            color: #a0b0c0;
+            margin-bottom: 30px;
+        }
+
+        .answer-item {
+            background: rgba(42, 63, 95, 0.3);
+            border-left: 4px solid #2a5f8f;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+        }
+
+        .answer-item.correct {
+            border-left-color: #4caf50;
+            background: rgba(76, 175, 80, 0.1);
+        }
+
+        .answer-item.incorrect {
+            border-left-color: #f44336;
+            background: rgba(244, 67, 54, 0.1);
+        }
+
+        .progress {
+            background: rgba(42, 63, 95, 0.5);
+            height: 8px;
+            border-radius: 4px;
+            margin: 20px 0;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #4da6ff 0%, #2a7dd7 100%);
+            transition: width 0.3s;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .stat-box {
+            background: rgba(42, 63, 95, 0.3);
+            border: 1px solid #2a5f8f;
+            padding: 15px;
+            border-radius: 6px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 1.8em;
+            font-weight: 700;
+            color: #4da6ff;
+        }
+
+        .stat-label {
+            font-size: 0.85em;
+            color: #a0b0c0;
+            margin-top: 5px;
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+        }
+
+        .alert-info {
+            background: rgba(33, 150, 243, 0.2);
+            border: 1px solid #2196f3;
+            color: #64b5f6;
+        }
+
+        .rule-reference {
+            background: rgba(76, 175, 80, 0.1);
+            border: 1px solid #4caf50;
+            padding: 12px;
+            border-radius: 6px;
+            margin-top: 10px;
+            color: #a8e6a8;
+            font-size: 0.9em;
+        }
+
+        .metric-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .metric-card {
+            background: rgba(42, 63, 95, 0.3);
+            border: 1px solid #2a5f8f;
+            border-radius: 8px;
+            padding: 18px;
+        }
+
+        .metric-card strong {
+            display: block;
+            color: #4da6ff;
+            font-size: 1.5em;
+            margin-bottom: 6px;
+        }
+
+        .sandbox-output {
+            display: none;
+            margin-top: 20px;
+        }
+
+        .radio-option {
+            display: flex;
+            align-items: center;
+            padding: 12px 15px;
+            margin-bottom: 10px;
+            background: rgba(26, 35, 50, 0.5);
+            border: 2px solid #2a5f8f;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .radio-option:hover {
+            background: rgba(77, 166, 255, 0.1);
+            border-color: #4da6ff;
+        }
+
+        .radio-option input[type="radio"] {
+            margin-right: 12px;
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+
+        .radio-option input[type="radio"]:checked + label {
+            color: #4da6ff;
+            font-weight: 600;
+        }
+
+        .radio-option label {
+            flex: 1;
+            cursor: pointer;
+            margin: 0;
+        }
+
+        .phase-indicators {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .phase-dot {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: rgba(42, 63, 95, 0.3);
+            border: 2px solid #2a5f8f;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #a0b0c0;
+            font-weight: 600;
+        }
+
+        .phase-dot.active {
+            background: rgba(77, 166, 255, 0.3);
+            border-color: #4da6ff;
+            color: #4da6ff;
+        }
+
+        .phase-dot.complete {
+            background: rgba(76, 175, 80, 0.3);
+            border-color: #4caf50;
+            color: #4caf50;
+        }
+
+        .dp-metrics {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .dp-metric {
+            background: rgba(42, 63, 95, 0.3);
+            border: 1px solid #2a5f8f;
+            padding: 15px;
+            border-radius: 6px;
+            text-align: center;
+        }
+
+        .dp-metric-value {
+            font-size: 2em;
+            font-weight: 700;
+            color: #4da6ff;
+            margin-bottom: 5px;
+        }
+
+        .dp-metric-label {
+            font-size: 0.85em;
+            color: #a0b0c0;
+        }
+
+        .assessment-badge {
+            display: inline-block;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 1.1em;
+            margin: 20px 0;
+        }
+
+        .assessment-excellent {
+            background: rgba(76, 175, 80, 0.2);
+            color: #4caf50;
+            border: 2px solid #4caf50;
+        }
+
+        .assessment-good {
+            background: rgba(33, 150, 243, 0.2);
+            color: #2196f3;
+            border: 2px solid #2196f3;
+        }
+
+        .assessment-fair {
+            background: rgba(255, 152, 0, 0.2);
+            color: #ff9800;
+            border: 2px solid #ff9800;
+        }
+
+        .assessment-poor {
+            background: rgba(244, 67, 54, 0.2);
+            color: #f44336;
+            border: 2px solid #f44336;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.6);
+        }
+
+        .modal-content {
+            background-color: rgba(15, 20, 25, 0.95);
+            margin: 5% auto;
+            padding: 30px;
+            border: 1px solid #2a5f8f;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 500px;
+        }
+
+        .modal-close {
+            color: #a0b0c0;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .modal-close:hover {
+            color: #4da6ff;
+        }
+
+        .settings-group {
+            margin-bottom: 20px;
+        }
+
+        .settings-group label {
+            display: block;
+            color: #4da6ff;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .chat-container {
+            display: flex;
+            flex-direction: column;
+            height: 600px;
+            background: rgba(26, 35, 50, 0.5);
+            border: 1px solid #2a5f8f;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .chat-message {
+            padding: 16px 18px;
+            border-radius: 8px;
+            max-width: 90%;
+            word-wrap: break-word;
+            line-height: 1.6;
+            font-size: 0.95em;
+        }
+
+        .chat-message.user {
+            background: rgba(77, 166, 255, 0.15);
+            border: 1px solid rgba(77, 166, 255, 0.4);
+            border-left: 4px solid #4da6ff;
+            color: #e0e6ed;
+            align-self: flex-end;
+            border-radius: 12px 4px 12px 12px;
+            box-shadow: 0 2px 8px rgba(77, 166, 255, 0.1);
+        }
+
+        .chat-message.assistant {
+            background: rgba(42, 63, 95, 0.4);
+            border: 1px solid rgba(77, 166, 255, 0.2);
+            border-left: 4px solid #4da6ff;
+            color: #d0d8e0;
+            align-self: flex-start;
+            border-radius: 4px 12px 12px 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .chat-message.assistant strong {
+            color: #4da6ff;
+            font-weight: 700;
+            display: block;
+            margin-top: 8px;
+            margin-bottom: 6px;
+            font-size: 1.08em;
+            letter-spacing: 0.5px;
+        }
+
+        .chat-message.assistant strong:first-child {
+            margin-top: 0;
+        }
+
+        /* Styled formatting within assistant messages */
+        .chat-message.assistant em {
+            color: #ffa500;
+            font-style: italic;
+            font-weight: 500;
+        }
+
+        .chat-message.assistant ul {
+            list-style-type: none;
+            padding: 0;
+            margin: 8px 0 !important;
+        }
+
+        .chat-message.assistant li {
+            padding-left: 24px;
+            margin: 6px 0;
+            position: relative;
+            line-height: 1.6;
+        }
+
+        .chat-message.assistant li:before {
+            content: "▸";
+            position: absolute;
+            left: 0;
+            color: #4da6ff;
+            font-weight: bold;
+        }
+
+        .chat-message.assistant code {
+            background: rgba(26, 35, 50, 0.6);
+            padding: 2px 6px;
+            border-radius: 3px;
+            color: #4da6ff;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+
+        .chat-message.error {
+            background: rgba(244, 67, 54, 0.15);
+            border: 1px solid rgba(244, 67, 54, 0.4);
+            border-left: 4px solid #f44336;
+            color: #ff8a80;
+            align-self: flex-start;
+        }
+
+        .chat-input-area {
+            padding: 15px;
+            border-top: 1px solid #2a5f8f;
+            display: flex;
+            gap: 10px;
+        }
+
+        .chat-input-area input {
+            flex: 1;
+            padding: 10px 15px;
+            background: rgba(26, 35, 50, 0.5);
+            border: 1px solid #2a5f8f;
+            border-radius: 6px;
+            color: #e0e6ed;
+            font-family: inherit;
+        }
+
+        .chat-input-area input:focus {
+            outline: none;
+            border-color: #4da6ff;
+        }
+
+        .chat-input-area button {
+            padding: 10px 20px;
+            background: linear-gradient(135deg, #4da6ff 0%, #2a7dd7 100%);
+            border: none;
+            border-radius: 6px;
+            color: white;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .chat-input-area button:disabled {
+            background: #555;
+            cursor: not-allowed;
+        }
+
+        .api-status {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            margin-top: 10px;
+        }
+
+        .api-status.configured {
+            background: rgba(76, 175, 80, 0.2);
+            color: #4caf50;
+            border: 1px solid #4caf50;
+        }
+
+        .api-status.unconfigured {
+            background: rgba(244, 67, 54, 0.2);
+            color: #f44336;
+            border: 1px solid #f44336;
+        }
+
+        @media (max-width: 600px) {
+            h1 {
+                font-size: 1.6em;
+            }
+
+            .stats {
+                grid-template-columns: 1fr;
+            }
+
+            .tab-btn {
+                font-size: 0.8em;
+                padding: 12px 15px;
+            }
+
+            .scenario-card {
+                padding: 15px;
+            }
+        }
+    </style>
+    <!-- Markdown parser for AI responses -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <h1>⚓ SeaForge COLREGS Interactive Demo</h1>
+                    <p class="tagline">Test your maritime knowledge — Real COLREGS engine, real scenarios</p>
+                </div>
+                <button class="btn-secondary" onclick="openSettings()" style="align-self: flex-start; margin-top: 10px;">⚙️ Settings</button>
+            </div>
+        </header>
+
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchTab('trainer', this)">📚 COLREGS Trainer</button>
+            <button class="tab-btn" onclick="switchTab('bridge', this)">🌊 Bridge Simulator</button>
+            <button class="tab-btn" onclick="switchTab('dp', this)">⛽ OOW DP Training</button>
+            <button class="tab-btn" onclick="switchTab('sandbox', this)">🧭 Rule Sandbox</button>
+            <button class="tab-btn" onclick="switchTab('assistant', this)">🤖 Maritime AI</button>
+            <button class="tab-btn" onclick="switchTab('info', this)">ℹ️ About</button>
+        </div>
+
+        <!-- COLREGS Trainer Tab -->
+        <div id="trainer" class="tab-content active">
+            <div id="trainer-intro" style="display: block;">
+                <h2 style="color: #4da6ff; margin-bottom: 15px;">📚 Interactive COLREGS Trainer</h2>
+                <p style="margin-bottom: 20px; color: #a0b0c0;">Test your knowledge of the International Regulations for Preventing Collisions at Sea (COLREGS). You'll get 5 random scenarios from our database of 95 real maritime situations.</p>
+
+                <div class="alert alert-info">
+                    <strong>How it works:</strong> You'll see a maritime scenario. Answer the question, then press Submit to see if you're correct. The COLREGS engine will explain the rule.
+                </div>
+
+                <div class="button-group">
+                    <button class="btn-primary" onclick="startTrainer()">Start Trainer (5 Questions)</button>
+                </div>
+            </div>
+
+            <div id="trainer-quiz" style="display: none;">
+                <div class="progress">
+                    <div class="progress-bar" id="trainer-progress-bar" style="width: 0%"></div>
+                </div>
+                <p id="trainer-question-counter" style="color: #a0b0c0; margin-bottom: 15px;"></p>
+
+                <div class="scenario-card">
+                    <div class="scenario-header">
+                        <div class="category" id="trainer-category">LIGHTS</div>
+                        <div class="difficulty" id="trainer-difficulty">⭐⭐</div>
+                    </div>
+                    <div class="question" id="trainer-question">Loading scenario...</div>
+                </div>
+
+                <form onsubmit="submitTrainerAnswer(event)">
+                    <div class="form-group">
+                        <label>Your Answer:</label>
+                        <div id="trainer-options" style="margin-top: 15px;">
+                            <!-- Radio buttons will be inserted here -->
+                        </div>
+                    </div>
+
+                    <div class="button-group">
+                        <button type="submit" class="btn-primary" id="trainer-submit-btn">Submit Answer</button>
+                    </div>
+                </form>
+
+                <div id="trainer-feedback" class="feedback"></div>
+            </div>
+
+            <div id="trainer-results" style="display: none;">
+                <div class="results">
+                    <h2 style="color: #4da6ff;">Quiz Complete! 🎉</h2>
+                    <div class="score" id="trainer-score">5/5</div>
+                    <div class="accuracy" id="trainer-accuracy">100% Accuracy</div>
+
+                    <h3 style="color: #a0b0c0; margin-bottom: 20px;">Your Answers:</h3>
+                    <div id="trainer-answer-list"></div>
+
+                    <div class="button-group" style="margin-top: 30px;">
+                        <button class="btn-secondary" onclick="resetTrainer()">Try Again</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bridge Simulator Tab -->
+        <div id="bridge" class="tab-content">
+            <div id="bridge-intro" style="display: block;">
+                <h2 style="color: #4da6ff; margin-bottom: 15px;">🌊 Bridge Simulator</h2>
+                <p style="margin-bottom: 20px; color: #a0b0c0;">You're the Officer of the Watch approaching Bergen Harbor. Three vessels are in sight. For each encounter, determine your vessel's role: give-way or stand-on.</p>
+
+                <div class="alert alert-info">
+                    <strong>Scenario:</strong> MV SEAFORGE (your vessel) heading East at 12 knots. Three simultaneous encounters approaching.
+                </div>
+
+                <div class="button-group">
+                    <button class="btn-primary" onclick="startBridge()">Start Simulator</button>
+                </div>
+            </div>
+
+            <div id="bridge-sim" style="display: none;">
+                <!-- Own Vessel Context Card (Always Visible) -->
+                <div class="scenario-card" style="background: rgba(76, 175, 80, 0.1); border-color: #4caf50; margin-bottom: 25px;">
+                    <h3 style="color: #4caf50; margin-bottom: 15px;">🚢 Own Vessel (MV SEAFORGE)</h3>
+                    <div class="stats">
+                        <div class="stat-box">
+                            <div class="stat-value">090°</div>
+                            <div class="stat-label">Course Over Ground</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-value">12 kts</div>
+                            <div class="stat-label">Speed</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-value">Bergen Harbor</div>
+                            <div class="stat-label">Destination</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="progress">
+                    <div class="progress-bar" id="bridge-progress-bar" style="width: 0%"></div>
+                </div>
+                <p id="bridge-encounter-counter" style="color: #a0b0c0; margin-bottom: 15px;"></p>
+
+                <div class="scenario-card">
+                    <h3 style="color: #4da6ff; margin-bottom: 15px;" id="bridge-vessel-name">Container Ship A</h3>
+
+                    <div class="stats">
+                        <div class="stat-box">
+                            <div class="stat-value" id="bridge-distance">6.3</div>
+                            <div class="stat-label">Distance (nm)</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-value" id="bridge-bearing">90°</div>
+                            <div class="stat-label">Bearing</div>
+                        </div>
+                    </div>
+
+                    <div class="question" id="bridge-question">Determine your vessel's role...</div>
+                </div>
+
+                <form onsubmit="submitBridgeAnswer(event)">
+                    <div class="form-group">
+                        <label for="bridge-role">Your Role:</label>
+                        <select id="bridge-role" required>
+                            <option value="">-- Select your role --</option>
+                            <option value="give-way">Give-way Vessel</option>
+                            <option value="stand-on">Stand-on Vessel</option>
+                        </select>
+                    </div>
+
+                    <div class="button-group">
+                        <button type="submit" class="btn-primary" id="bridge-submit-btn">Submit Decision</button>
+                    </div>
+                </form>
+
+                <div id="bridge-feedback" class="feedback"></div>
+            </div>
+
+            <div id="bridge-results" style="display: none;">
+                <div class="results">
+                    <h2 style="color: #4da6ff;">Simulation Complete! ⚓</h2>
+                    <div class="score" id="bridge-score">3/3</div>
+                    <div class="accuracy" id="bridge-accuracy">100% Correct Decisions</div>
+
+                    <h3 style="color: #a0b0c0; margin-bottom: 20px;">Encounter Log:</h3>
+                    <div id="bridge-answer-list"></div>
+
+                    <div class="button-group" style="margin-top: 30px;">
+                        <button class="btn-secondary" onclick="resetBridge()">New Simulation</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- OOW DP Training Tab -->
+        <div id="dp" class="tab-content">
+            <div id="dp-intro" style="display: block;">
+                <h2 style="color: #4da6ff; margin-bottom: 15px;">⛽ Officer of the Watch — Dynamic Positioning Training</h2>
+                <p style="margin-bottom: 20px; color: #a0b0c0;">Master the art of dynamic positioning on a supply vessel in challenging North Sea conditions. Three phases: Initial Approach, Fine Positioning, and Station-Keeping.</p>
+
+                <div class="alert alert-info">
+                    <strong>Scenario:</strong> MV DP SENTINEL is approaching an offshore platform in 25-knot winds and 1.5-knot current. Start 141.4m away. Minimize position error, maximize fuel efficiency.
+                </div>
+
+                <div class="button-group">
+                    <button class="btn-primary" onclick="startDP()">Start DP Training</button>
+                </div>
+            </div>
+
+            <div id="dp-sim" style="display: none;">
+                <div class="phase-indicators">
+                    <div class="phase-dot" id="phase1-dot">1</div>
+                    <div class="phase-dot" id="phase2-dot">2</div>
+                    <div class="phase-dot" id="phase3-dot">3</div>
+                </div>
+
+                <p id="dp-phase-name" style="color: #a0b0c0; margin-bottom: 15px; font-weight: 600;"></p>
+
+                <div class="scenario-card">
+                    <h3 style="color: #4da6ff; margin-bottom: 15px;">MV DP SENTINEL</h3>
+                    <p style="margin-bottom: 15px; color: #a0b0c0;">Environmental Conditions:</p>
+                    <div class="stats">
+                        <div class="stat-box">
+                            <div class="stat-value">25 kts</div>
+                            <div class="stat-label">Wind Speed (from 180°)</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-value">1.5 kts</div>
+                            <div class="stat-label">Current (from 90°)</div>
+                        </div>
+                    </div>
+
+                    <h3 style="color: #4da6ff; margin-top: 25px; margin-bottom: 15px;">Current Status:</h3>
+                    <div class="dp-metrics">
+                        <div class="dp-metric">
+                            <div class="dp-metric-value" id="dp-error">141.4</div>
+                            <div class="dp-metric-label">Position Error (m)</div>
+                        </div>
+                        <div class="dp-metric">
+                            <div class="dp-metric-value" id="dp-fuel">100.0</div>
+                            <div class="dp-metric-label">Fuel Level (%)</div>
+                        </div>
+                        <div class="dp-metric">
+                            <div class="dp-metric-value" id="dp-station">0</div>
+                            <div class="dp-metric-label">On Station (%)</div>
+                        </div>
+                    </div>
+
+                    <p style="margin-top: 20px; color: #a0b0c0; font-style: italic;">Reduce position error while conserving fuel. Phase complete when error is minimized.</p>
+                </div>
+
+                <div class="button-group">
+                    <button class="btn-primary" onclick="advanceDP()">Complete Phase</button>
+                </div>
+
+                <div id="dp-feedback" class="feedback"></div>
+            </div>
+
+            <div id="dp-results" style="display: none;">
+                <div class="results">
+                    <h2 style="color: #4da6ff;">Training Complete! ⚓</h2>
+                    <div class="assessment-badge" id="dp-assessment-badge"></div>
+                    <div style="font-size: 1.2em; margin: 20px 0; color: #a0b0c0;">
+                        <span id="dp-points">0</span> / 100 Points
+                    </div>
+
+                    <h3 style="color: #a0b0c0; margin-bottom: 20px;">Final Metrics:</h3>
+                    <div class="dp-metrics">
+                        <div class="dp-metric">
+                            <div class="dp-metric-value" id="dp-final-error">0</div>
+                            <div class="dp-metric-label">Final Error (m)</div>
+                        </div>
+                        <div class="dp-metric">
+                            <div class="dp-metric-value" id="dp-final-fuel">0</div>
+                            <div class="dp-metric-label">Fuel Remaining (%)</div>
+                        </div>
+                        <div class="dp-metric">
+                            <div class="dp-metric-value" id="dp-final-station">0</div>
+                            <div class="dp-metric-label">On-Station Time (%)</div>
+                        </div>
+                    </div>
+
+                    <div class="button-group" style="margin-top: 30px;">
+                        <button class="btn-secondary" onclick="resetDP()">Try Again</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Rule Sandbox Tab -->
+        <div id="sandbox" class="tab-content">
+            <h2 style="color: #4da6ff; margin-bottom: 15px;">🧭 Rule Sandbox</h2>
+            <p style="margin-bottom: 20px; color: #a0b0c0;">
+                Manually test the core encounter classifier. Enter courses and
+                relative bearing, then inspect the library's decision.
+            </p>
+
+            <div class="scenario-card">
+                <form onsubmit="runSandbox(event)">
+                    <div class="stats">
+                        <div class="form-group">
+                            <label for="sandbox-own-cog">Own Course Over Ground</label>
+                            <input id="sandbox-own-cog" type="number" min="0" max="359" value="0" required />
+                        </div>
+                        <div class="form-group">
+                            <label for="sandbox-target-cog">Target Course Over Ground</label>
+                            <input id="sandbox-target-cog" type="number" min="0" max="359" value="270" required />
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="sandbox-rel-bearing">Relative Bearing</label>
+                        <input id="sandbox-rel-bearing" type="number" min="0" max="359" value="45" required />
+                    </div>
+
+                    <div class="button-group">
+                        <button type="submit" class="btn-primary">Classify Encounter</button>
+                    </div>
+                </form>
+
+                <div id="sandbox-output" class="scenario-card sandbox-output">
+                    <div class="scenario-header">
+                        <div class="category" id="sandbox-situation">CROSSING</div>
+                        <div class="difficulty" id="sandbox-role">GIVE-WAY</div>
+                    </div>
+                    <div class="question" id="sandbox-action"></div>
+                    <div class="rule-reference" id="sandbox-rule"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Maritime AI Assistant Tab -->
+        <div id="assistant" class="tab-content">
+            <h2 style="color: #4da6ff; margin-bottom: 20px;">🤖 Maritime AI Assistant</h2>
+
+            <div id="assistant-unconfigured" style="display: none;">
+                <div class="alert alert-info">
+                    <strong>Setup Required:</strong> To use the maritime AI assistant, configure your API key in Settings.
+                </div>
+                <div class="button-group">
+                    <button class="btn-primary" onclick="openSettings()">Open Settings</button>
+                </div>
+            </div>
+
+            <div id="assistant-configured" style="display: none;">
+                <p style="color: #a0b0c0; margin-bottom: 20px;">Ask maritime questions, explain COLREGS scenarios, or get expert advice on navigation and seamanship.</p>
+
+                <div class="chat-container">
+                    <div class="chat-messages" id="chat-messages">
+                        <div class="chat-message assistant">
+                            👋 Welcome to Maritime AI Assistant. I can help you understand COLREGS, explain scenarios, or answer maritime questions. What would you like to know?
+                        </div>
+                    </div>
+                    <div class="chat-input-area">
+                        <input
+                            type="text"
+                            id="chat-input"
+                            placeholder="Ask about COLREGS, navigation, seamanship..."
+                            onkeypress="if(event.key==='Enter') sendChatMessage()"
+                        />
+                        <button onclick="sendChatMessage()" id="chat-send-btn">Send</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Info Tab -->
+        <div id="info" class="tab-content">
+            <h2 style="color: #4da6ff; margin-bottom: 20px;">About This Demo</h2>
+
+            <div class="scenario-card">
+                <h3 style="color: #a0b0c0;">🎓 What is seaforge-colregs?</h3>
+                <p style="margin-top: 10px;">An open-source COLREGS engine with zero external dependencies. Powers maritime training, bridge simulators, and autonomous vessel compliance checking.</p>
+            </div>
+
+            <div class="scenario-card">
+                <h3 style="color: #a0b0c0;">📚 Training Content</h3>
+                <p style="margin-top: 10px;">
+                    Live stats from the packaged JSON data:
+                </p>
+                <div id="library-metrics" class="metric-grid">
+                    <div class="metric-card">
+                        <strong>95</strong>
+                        <span>Total scenarios</span>
+                    </div>
+                </div>
+                <div id="library-categories" class="rule-reference">
+                    Loading category breakdown...
+                </div>
+            </div>
+
+            <div class="scenario-card">
+                <h3 style="color: #a0b0c0;">⚙️ Technical Details</h3>
+                <p style="margin-top: 10px;">
+                    <strong>Rules Implemented:</strong> 13, 14, 15 (Overtaking, Head-on, Crossing)<br/>
+                    <strong>Calculations:</strong> CPA/TCPA, bearing, range, collision risk assessment<br/>
+                    <strong>Dependencies:</strong> Zero — uses only Python stdlib<br/>
+                    <strong>Status:</strong> Production-ready, fully tested
+                </p>
+            </div>
+
+            <div class="scenario-card">
+                <h3 style="color: #a0b0c0;">📖 Learn More</h3>
+                <p style="margin-top: 10px;">
+                    <a href="https://github.com/seaforge-maritime/seaforge-colregs" style="color: #4da6ff; text-decoration: none;">GitHub Repository →</a><br/>
+                    <a href="#" style="color: #4da6ff; text-decoration: none;">Full Documentation →</a>
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="modal">
+        <div class="modal-content">
+            <span class="modal-close" onclick="closeSettings()">&times;</span>
+            <h2 style="color: #4da6ff; margin-bottom: 20px;">⚙️ Maritime AI Settings</h2>
+
+            <form onsubmit="saveAPISettings(event)">
+                <div class="settings-group">
+                    <label for="api-provider">AI Provider:</label>
+                    <select id="api-provider" onchange="updateModelDropdown()" style="width: 100%; padding: 10px; background: rgba(26, 35, 50, 0.5); border: 1px solid #2a5f8f; border-radius: 6px; color: #e0e6ed;">
+                        <option value="">-- Select Provider --</option>
+                        <option value="claude">🧠 Claude (Anthropic)</option>
+                        <option value="openai">🤖 OpenAI (ChatGPT)</option>
+                        <option value="google">🔍 Google (Gemini)</option>
+                        <option value="groq">⚡ Groq (Fast)</option>
+                    </select>
+                </div>
+
+                <div class="settings-group">
+                    <label for="api-model">Model:</label>
+                    <select id="api-model" onchange="handleModelChange()" style="width: 100%; padding: 10px; background: rgba(26, 35, 50, 0.5); border: 1px solid #2a5f8f; border-radius: 6px; color: #e0e6ed;">
+                        <option value="">-- Select Model --</option>
+                    </select>
+                    <input
+                        type="text"
+                        id="api-model-custom"
+                        placeholder="Enter custom model name (e.g., claude-4-turbo)"
+                        style="display: none; width: 100%; padding: 10px; margin-top: 10px; background: rgba(26, 35, 50, 0.5); border: 1px solid #2a5f8f; border-radius: 6px; color: #e0e6ed;"
+                    />
+                </div>
+
+                <div class="settings-group">
+                    <label for="api-key">API Key:</label>
+                    <input
+                        type="password"
+                        id="api-key"
+                        placeholder="Your API key (stored in browser, never sent to SeaForge server)"
+                        autocomplete="off"
+                        required
+                        style="width: 100%; padding: 10px; background: rgba(26, 35, 50, 0.5); border: 1px solid #2a5f8f; border-radius: 6px; color: #e0e6ed;"
+                    />
+                    <small style="color: #a0b0c0; display: block; margin-top: 8px;">
+                        🔒 Your API key is stored locally in your browser only. Never sent to SeaForge servers.
+                    </small>
+                </div>
+
+                <div id="api-status-display"></div>
+
+                <div class="button-group" style="margin-top: 25px;">
+                    <button type="submit" class="btn-primary">Save Settings</button>
+                    <button type="button" class="btn-secondary" onclick="closeSettings()">Cancel</button>
+                </div>
+            </form>
+
+            <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #2a5f8f;">
+                <p style="color: #a0b0c0; font-size: 0.85em; margin-bottom: 10px;">
+                    <strong>Get Your API Key:</strong>
+                </p>
+                <ul style="color: #a0b0c0; font-size: 0.85em; margin-left: 20px;">
+                    <li><a href="https://console.anthropic.com" target="_blank" style="color: #4da6ff;">Anthropic Console</a> (Claude)</li>
+                    <li><a href="https://platform.openai.com/api-keys" target="_blank" style="color: #4da6ff;">OpenAI Platform</a> (ChatGPT)</li>
+                    <li><a href="https://ai.google.dev" target="_blank" style="color: #4da6ff;">Google AI Studio</a> (Gemini)</li>
+                    <li><a href="https://console.groq.com" target="_blank" style="color: #4da6ff;">Groq Console</a> (Fast inference)</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentSession = null;
+
+        function switchTab(tabName, clickedButton) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+
+            // Show selected tab
+            document.getElementById(tabName).classList.add('active');
+            clickedButton.classList.add('active');
+
+            if (tabName === 'info') {
+                loadLibraryStats();
+            }
+        }
+
+        // === TRAINER FUNCTIONS ===
+
+        async function startTrainer() {
+            const response = await fetch('/api/trainer/start', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ num_questions: 5 })
+            });
+            const data = await response.json();
+            currentSession = data;
+
+            displayTrainerQuestion(data);
+            document.getElementById('trainer-intro').style.display = 'none';
+            document.getElementById('trainer-quiz').style.display = 'block';
+        }
+
+        function displayTrainerQuestion(data) {
+            const progress = ((data.current_question - 1) / data.total_questions) * 100;
+            document.getElementById('trainer-progress-bar').style.width = progress + '%';
+            document.getElementById('trainer-question-counter').textContent =
+                `Question ${data.current_question} of ${data.total_questions}`;
+
+            document.getElementById('trainer-category').textContent = data.scenario.category;
+            document.getElementById('trainer-difficulty').textContent = data.scenario.difficulty;
+            document.getElementById('trainer-question').textContent = data.scenario.question;
+
+            // Render radio button options
+            const optionsContainer = document.getElementById('trainer-options');
+            optionsContainer.innerHTML = data.scenario.options.map((option, i) => `
+                <div class="radio-option">
+                    <input type="radio" id="option-${i}" name="trainer-answer" value="${option}" />
+                    <label for="option-${i}">${option}</label>
+                </div>
+            `).join('');
+
+            document.getElementById('trainer-feedback').style.display = 'none';
+        }
+
+        async function submitTrainerAnswer(event) {
+            event.preventDefault();
+            const selectedRadio = document.querySelector('input[name="trainer-answer"]:checked');
+            if (!selectedRadio) {
+                alert('Please select an answer');
+                return;
+            }
+            const answer = selectedRadio.value;
+
+            const response = await fetch('/api/trainer/answer', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    session_id: currentSession.session_id,
+                    answer: answer
+                })
+            });
+            const data = await response.json();
+
+            if (data.status === 'next_question') {
+                const feedback = document.getElementById('trainer-feedback');
+                feedback.className = 'feedback ' + (data.feedback.correct ? 'correct' : 'incorrect');
+                feedback.innerHTML = data.feedback.correct
+                    ? `✓ Correct!<div class="rule-reference">Rule: ${data.feedback.rule}<br/>Answer: ${data.feedback.correct_answer}</div>`
+                    : `✗ Incorrect.<div class="rule-reference">Correct answer: ${data.feedback.correct_answer}<br/>Rule: ${data.feedback.rule}</div>`;
+                feedback.style.display = 'block';
+
+                setTimeout(() => {
+                    displayTrainerQuestion(data);
+                }, 2000);
+            } else if (data.status === 'complete') {
+                showTrainerResults(data);
+            }
+        }
+
+        function showTrainerResults(data) {
+            document.getElementById('trainer-quiz').style.display = 'none';
+            document.getElementById('trainer-results').style.display = 'block';
+
+            document.getElementById('trainer-score').textContent = `${data.score}/${data.total}`;
+            document.getElementById('trainer-accuracy').textContent = `${data.accuracy} Accuracy`;
+
+            const answerList = document.getElementById('trainer-answer-list');
+            answerList.innerHTML = data.answers.map((a, i) => `
+                <div class="answer-item ${a.correct ? 'correct' : 'incorrect'}">
+                    <strong>Q${a.question}:</strong> ${a.correct ? '✓' : '✗'}<br/>
+                    <small style="color: #a0b0c0;">Your answer: ${a.user_answer}</small><br/>
+                    <small style="color: #a0b0c0;">Correct: ${a.correct_answer}</small><br/>
+                    <small style="color: #4da6ff;">Rule: ${a.rule}</small>
+                </div>
+            `).join('');
+        }
+
+        function resetTrainer() {
+            document.getElementById('trainer-quiz').style.display = 'none';
+            document.getElementById('trainer-results').style.display = 'none';
+            document.getElementById('trainer-intro').style.display = 'block';
+            currentSession = null;
+        }
+
+        // === BRIDGE SIMULATOR FUNCTIONS ===
+
+        async function startBridge() {
+            const response = await fetch('/api/bridge/start', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({})
+            });
+            const data = await response.json();
+            currentSession = data;
+
+            displayBridgeEncounter(data);
+            document.getElementById('bridge-intro').style.display = 'none';
+            document.getElementById('bridge-sim').style.display = 'block';
+        }
+
+        function displayBridgeEncounter(data) {
+            const progress = ((data.current_encounter - 1) / data.total_encounters) * 100;
+            document.getElementById('bridge-progress-bar').style.width = progress + '%';
+            document.getElementById('bridge-encounter-counter').textContent =
+                `Encounter ${data.current_encounter} of ${data.total_encounters}`;
+
+            document.getElementById('bridge-vessel-name').textContent = data.scenario.vessel_name;
+            document.getElementById('bridge-distance').textContent = data.scenario.distance_nm.toFixed(1);
+            document.getElementById('bridge-bearing').textContent = data.scenario.bearing.toFixed(0) + '°';
+            document.getElementById('bridge-question').textContent = data.scenario.question;
+            document.getElementById('bridge-role').value = '';
+            document.getElementById('bridge-feedback').style.display = 'none';
+        }
+
+        async function submitBridgeAnswer(event) {
+            event.preventDefault();
+            const role = document.getElementById('bridge-role').value;
+
+            const response = await fetch('/api/bridge/answer', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    session_id: currentSession.session_id,
+                    role: role
+                })
+            });
+            const data = await response.json();
+
+            if (data.status === 'next_encounter') {
+                const feedback = document.getElementById('bridge-feedback');
+                feedback.className = 'feedback ' + (data.feedback.correct ? 'correct' : 'incorrect');
+                feedback.innerHTML = data.feedback.correct
+                    ? `✓ Correct!<div class="rule-reference">${data.feedback.situation} · ${data.feedback.rule}<br/>${data.feedback.action}</div>`
+                    : `✗ Incorrect.<div class="rule-reference">Correct role: ${data.feedback.correct_role}<br/>${data.feedback.situation} · ${data.feedback.rule}<br/>${data.feedback.action}</div>`;
+                feedback.style.display = 'block';
+
+                setTimeout(() => {
+                    displayBridgeEncounter(data);
+                }, 2000);
+            } else if (data.status === 'complete') {
+                showBridgeResults(data);
+            }
+        }
+
+        function showBridgeResults(data) {
+            document.getElementById('bridge-sim').style.display = 'none';
+            document.getElementById('bridge-results').style.display = 'block';
+
+            document.getElementById('bridge-score').textContent = `${data.score}/${data.total}`;
+            document.getElementById('bridge-accuracy').textContent = `${data.accuracy}`;
+
+            const answerList = document.getElementById('bridge-answer-list');
+            answerList.innerHTML = data.answers.map((a, i) => `
+                <div class="answer-item ${a.correct ? 'correct' : 'incorrect'}">
+                    <strong>${a.vessel}:</strong> ${a.correct ? '✓' : '✗'}<br/>
+                    <small style="color: #a0b0c0;">Your role: ${a.user_role}</small><br/>
+                    <small style="color: #a0b0c0;">Correct: ${a.correct_role}</small><br/>
+                    <small style="color: #4da6ff;">Situation: ${a.situation} (${a.rule})</small><br/>
+                    <small style="color: #a0b0c0;">Action: ${a.action}</small>
+                </div>
+            `).join('');
+        }
+
+        function resetBridge() {
+            document.getElementById('bridge-sim').style.display = 'none';
+            document.getElementById('bridge-results').style.display = 'none';
+            document.getElementById('bridge-intro').style.display = 'block';
+            currentSession = null;
+        }
+
+        // === DP TRAINING FUNCTIONS ===
+
+        async function startDP() {
+            const response = await fetch('/api/dp/start', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({})
+            });
+            const data = await response.json();
+            currentSession = data;
+
+            updateDPPhase(data);
+            document.getElementById('dp-intro').style.display = 'none';
+            document.getElementById('dp-sim').style.display = 'block';
+        }
+
+        function updateDPPhase(data) {
+            const phaseNames = ['Initial Approach', 'Fine Positioning', 'Station-Keeping'];
+            const phase = Math.min(data.phase, 3);
+
+            document.getElementById('dp-phase-name').textContent = `Phase ${phase}: ${phaseNames[phase - 1]}`;
+
+            // Update phase indicators
+            for (let i = 1; i <= 3; i++) {
+                const dot = document.getElementById(`phase${i}-dot`);
+                if (i < phase) {
+                    dot.className = 'phase-dot complete';
+                    dot.textContent = '✓';
+                } else if (i === phase) {
+                    dot.className = 'phase-dot active';
+                    dot.textContent = i;
+                } else {
+                    dot.className = 'phase-dot';
+                    dot.textContent = i;
+                }
+            }
+
+            document.getElementById('dp-error').textContent = data.scenario?.initial_error ?? '0';
+            document.getElementById('dp-fuel').textContent = '100.0';
+            document.getElementById('dp-station').textContent = '0';
+        }
+
+        async function advanceDP() {
+            const response = await fetch('/api/dp/control', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    session_id: currentSession.session_id
+                })
+            });
+            const data = await response.json();
+
+            if (data.status === 'next_phase') {
+                // Update metrics display
+                document.getElementById('dp-error').textContent = data.error;
+                document.getElementById('dp-fuel').textContent = data.fuel;
+                document.getElementById('dp-station').textContent = data.on_station;
+
+                // Update phase indicator
+                const phase = data.phase;
+                const phaseNames = ['Initial Approach', 'Fine Positioning', 'Station-Keeping'];
+                for (let i = 1; i <= 3; i++) {
+                    const dot = document.getElementById(`phase${i}-dot`);
+                    if (i < phase) {
+                        dot.className = 'phase-dot complete';
+                        dot.textContent = '✓';
+                    } else if (i === phase) {
+                        dot.className = 'phase-dot active';
+                        dot.textContent = i;
+                    } else {
+                        dot.className = 'phase-dot';
+                        dot.textContent = i;
+                    }
+                }
+                document.getElementById('dp-phase-name').textContent = `Phase ${phase}: ${phaseNames[phase - 1]}`;
+
+                // Show feedback
+                const feedback = document.getElementById('dp-feedback');
+                feedback.className = 'feedback correct';
+                feedback.innerHTML = `✓ Phase ${phase - 1} Complete!<div class="rule-reference">Error reduced to ${data.error}m | Fuel: ${data.fuel}% | On-station: ${data.on_station}%</div>`;
+                feedback.style.display = 'block';
+
+                setTimeout(() => {
+                    feedback.style.display = 'none';
+                }, 2000);
+            } else if (data.status === 'complete') {
+                showDPResults(data);
+            }
+        }
+
+        function showDPResults(data) {
+            document.getElementById('dp-sim').style.display = 'none';
+            document.getElementById('dp-results').style.display = 'block';
+
+            const assessmentClass = `assessment-${data.assessment.toLowerCase()}`;
+            document.getElementById('dp-assessment-badge').className = `assessment-badge ${assessmentClass}`;
+            document.getElementById('dp-assessment-badge').textContent = data.assessment;
+
+            document.getElementById('dp-points').textContent = data.points;
+            document.getElementById('dp-final-error').textContent = data.final_error;
+            document.getElementById('dp-final-fuel').textContent = data.final_fuel;
+            document.getElementById('dp-final-station').textContent = data.on_station_time;
+        }
+
+        function resetDP() {
+            document.getElementById('dp-sim').style.display = 'none';
+            document.getElementById('dp-results').style.display = 'none';
+            document.getElementById('dp-intro').style.display = 'block';
+            currentSession = null;
+        }
+
+        // === SANDBOX FUNCTIONS ===
+
+        async function runSandbox(event) {
+            event.preventDefault();
+
+            const payload = {
+                own_cog: Number(document.getElementById('sandbox-own-cog').value),
+                target_cog: Number(document.getElementById('sandbox-target-cog').value),
+                rel_bearing: Number(document.getElementById('sandbox-rel-bearing').value)
+            };
+
+            const response = await fetch('/api/colregs/classify', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await response.json();
+
+            document.getElementById('sandbox-situation').textContent = data.situation.toUpperCase();
+            document.getElementById('sandbox-role').textContent = data.role.toUpperCase();
+            document.getElementById('sandbox-action').textContent = data.action;
+            document.getElementById('sandbox-rule').textContent = `Applied rule: ${data.rule}`;
+            document.getElementById('sandbox-output').style.display = 'block';
+        }
+
+        // === LIBRARY STATS ===
+
+        async function loadLibraryStats() {
+            const response = await fetch('/api/library/stats');
+            const data = await response.json();
+
+            document.getElementById('library-metrics').innerHTML = `
+                <div class="metric-card">
+                    <strong>${data.total_scenarios}</strong>
+                    <span>Total scenarios</span>
+                </div>
+                <div class="metric-card">
+                    <strong>${data.categories.length}</strong>
+                    <span>Categories</span>
+                </div>
+                <div class="metric-card">
+                    <strong>${data.difficulty_breakdown[1]}</strong>
+                    <span>Difficulty 1</span>
+                </div>
+                <div class="metric-card">
+                    <strong>${data.difficulty_breakdown[3]}</strong>
+                    <span>Difficulty 3</span>
+                </div>
+            `;
+
+            const categorySummary = Object.entries(data.counts_by_category)
+                .map(([name, count]) => `${name}: ${count}`)
+                .join(' | ');
+
+            document.getElementById('library-categories').textContent = categorySummary;
+        }
+
+        // === SETTINGS & API CONFIGURATION ===
+
+        const MODEL_OPTIONS = {
+            claude: [
+                { label: '4 Sonnet (Latest)', value: 'claude-4-20250514' },
+                { label: '3.5 Sonnet', value: 'claude-3-5-sonnet-20241022' },
+                { label: '3.5 Haiku (Fast)', value: 'claude-3-5-haiku-20241022' },
+                { label: 'Opus (Most Capable)', value: 'claude-3-opus-20250219' },
+                { label: 'Custom Model', value: 'custom' },
+            ],
+            openai: [
+                { label: 'GPT-4o (Recommended)', value: 'gpt-4o' },
+                { label: 'GPT-4o Mini (Fast)', value: 'gpt-4o-mini' },
+                { label: 'GPT-4 Turbo', value: 'gpt-4-turbo' },
+                { label: 'Custom Model', value: 'custom' },
+            ],
+            google: [
+                { label: 'Gemini 2.5 Pro (Latest)', value: 'gemini-2.5-pro' },
+                { label: 'Gemini 1.5 Flash (Free)', value: 'gemini-1.5-flash' },
+                { label: 'Custom Model', value: 'custom' },
+            ],
+            groq: [
+                { label: 'LLaMA 3.3 70B (Latest)', value: 'llama-3.3-70b-versatile' },
+                { label: 'Mixtral 8x7B', value: 'mixtral-8x7b-32768' },
+                { label: 'LLaMA 3 70B', value: 'llama-3-70b-versatile' },
+                { label: 'Custom Model', value: 'custom' },
+            ],
+        };
+
+        function updateModelDropdown() {
+            const provider = document.getElementById('api-provider').value;
+            const modelSelect = document.getElementById('api-model');
+            const customInput = document.getElementById('api-model-custom');
+            modelSelect.innerHTML = '<option value="">-- Select Model --</option>';
+            customInput.style.display = 'none';
+
+            if (provider && MODEL_OPTIONS[provider]) {
+                MODEL_OPTIONS[provider].forEach(model => {
+                    const option = document.createElement('option');
+                    option.value = model.value;
+                    option.textContent = model.label;
+                    modelSelect.appendChild(option);
+                });
+            }
+        }
+
+        function handleModelChange() {
+            const modelSelect = document.getElementById('api-model');
+            const customInput = document.getElementById('api-model-custom');
+
+            if (modelSelect.value === 'custom') {
+                customInput.style.display = 'block';
+                customInput.focus();
+            } else {
+                customInput.style.display = 'none';
+            }
+        }
+
+        function openSettings() {
+            document.getElementById('settings-modal').style.display = 'block';
+            loadAPISettings();
+        }
+
+        function closeSettings() {
+            document.getElementById('settings-modal').style.display = 'none';
+        }
+
+        function loadAPISettings() {
+            const saved = JSON.parse(localStorage.getItem('seaforge_api_config') || '{}');
+            document.getElementById('api-provider').value = saved.provider || '';
+            updateModelDropdown();
+
+            // Check if model is in the dropdown
+            const modelSelect = document.getElementById('api-model');
+            if (modelSelect.querySelector(`option[value="${saved.model}"]`)) {
+                document.getElementById('api-model').value = saved.model || '';
+            } else {
+                // Custom model - set to custom and show input
+                document.getElementById('api-model').value = 'custom';
+                document.getElementById('api-model-custom').value = saved.model || '';
+                document.getElementById('api-model-custom').style.display = 'block';
+            }
+
+            document.getElementById('api-key').value = saved.key || '';
+            updateAPIStatusDisplay();
+        }
+
+        function saveAPISettings(event) {
+            event.preventDefault();
+            const provider = document.getElementById('api-provider').value;
+            let model = document.getElementById('api-model').value;
+            const key = document.getElementById('api-key').value;
+
+            // Handle custom model
+            if (model === 'custom') {
+                model = document.getElementById('api-model-custom').value;
+                if (!model) {
+                    alert('Please enter a custom model name');
+                    return;
+                }
+            }
+
+            if (!provider || !model || !key) {
+                alert('Please fill in all fields');
+                return;
+            }
+
+            const config = { provider, model, key };
+            localStorage.setItem('seaforge_api_config', JSON.stringify(config));
+
+            alert(`✓ Settings saved! Using ${provider} (${model})`);
+            closeSettings();
+            updateAssistantTabVisibility();
+        }
+
+        function updateAPIStatusDisplay() {
+            const saved = JSON.parse(localStorage.getItem('seaforge_api_config') || '{}');
+            const statusDiv = document.getElementById('api-status-display');
+
+            if (saved.provider && saved.key) {
+                statusDiv.innerHTML = `
+                    <div class="api-status configured">
+                        ✓ Configured: ${saved.provider} (${saved.model})
+                    </div>
+                `;
+            } else {
+                statusDiv.innerHTML = `
+                    <div class="api-status unconfigured">
+                        ⚠️ Not configured
+                    </div>
+                `;
+            }
+        }
+
+        function updateAssistantTabVisibility() {
+            const saved = JSON.parse(localStorage.getItem('seaforge_api_config') || '{}');
+            const isConfigured = saved.provider && saved.key;
+
+            document.getElementById('assistant-unconfigured').style.display = isConfigured ? 'none' : 'block';
+            document.getElementById('assistant-configured').style.display = isConfigured ? 'block' : 'none';
+        }
+
+        // Format assistant response: use marked.js to parse markdown
+        function formatAssistantResponse(text) {
+            // Configure marked options for our theme
+            marked.setOptions({
+                breaks: true,  // Convert \n to <br>
+                gfm: true,     // GitHub Flavored Markdown
+            });
+
+            // Parse markdown to HTML
+            let html = marked(text);
+
+            // Post-process: Add custom styling and spacing
+            // Wrap h1-h6 in styled divs with visual separators
+            html = html.replace(/<h([1-6])>(.*?)<\/h[1-6]>/g, (match, level, content) => {
+                if (level <= 3) {
+                    return '<div style="margin-top: 12px; margin-bottom: 6px; padding-bottom: 8px; border-bottom: 1px solid rgba(77, 166, 255, 0.2);"><strong style="color: #4da6ff; font-size: 1.05em;">' + content + '</strong></div>';
+                }
+                return '<div style="margin: 10px 0;"><strong style="color: #4da6ff;">' + content + '</strong></div>';
+            });
+
+            // Style paragraphs
+            html = html.replace(/<p>(.*?)<\/p>/g, '<div style="margin-bottom: 8px; line-height: 1.6;">$1</div>');
+
+            // Style lists
+            html = html.replace(/<ul>/g, '<ul style="margin: 8px 0; padding-left: 24px;">');
+            html = html.replace(/<li>/g, '<li style="margin: 6px 0;">');
+
+            // Color warning symbols
+            html = html.replace(/⚠️/g, '<span style="color: #ffa500; font-weight: 600;">⚠️</span>');
+
+            return html;
+        }
+
+        // === MARITIME AI CHAT ===
+
+        async function sendChatMessage() {
+            const input = document.getElementById('chat-input');
+            const message = input.value.trim();
+
+            if (!message) return;
+
+            // Add user message to chat
+            const messagesDiv = document.getElementById('chat-messages');
+            const userMsg = document.createElement('div');
+            userMsg.className = 'chat-message user';
+            userMsg.textContent = message;
+            messagesDiv.appendChild(userMsg);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+
+            input.value = '';
+            input.disabled = true;
+            document.getElementById('chat-send-btn').disabled = true;
+
+            try {
+                const config = JSON.parse(localStorage.getItem('seaforge_api_config') || '{}');
+
+                if (!config.provider || !config.key) {
+                    throw new Error('API not configured');
+                }
+
+                let response;
+
+                if (config.provider === 'claude') {
+                    response = await callClaudeAPI(message, config.model, config.key);
+                } else if (config.provider === 'openai') {
+                    response = await callOpenAIAPI(message, config.model, config.key);
+                } else if (config.provider === 'google') {
+                    response = await callGoogleAPI(message, config.model, config.key);
+                } else if (config.provider === 'groq') {
+                    response = await callGroqAPI(message, config.model, config.key);
+                }
+
+                // Add assistant response with formatting
+                const assistantMsg = document.createElement('div');
+                assistantMsg.className = 'chat-message assistant';
+                assistantMsg.innerHTML = formatAssistantResponse(response);
+                messagesDiv.appendChild(assistantMsg);
+                messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            } catch (error) {
+                const errorMsg = document.createElement('div');
+                errorMsg.className = 'chat-message error';
+                errorMsg.textContent = `Error: ${error.message}`;
+                messagesDiv.appendChild(errorMsg);
+                messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            } finally {
+                input.disabled = false;
+                document.getElementById('chat-send-btn').disabled = false;
+                input.focus();
+            }
+        }
+
+        async function callClaudeAPI(message, model, apiKey) {
+            const response = await fetch('https://api.anthropic.com/v1/messages', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-api-key': apiKey,
+                    'anthropic-version': '2023-06-01',
+                },
+                body: JSON.stringify({
+                    model: model || 'claude-3-5-sonnet-20241022',
+                    max_tokens: 2048,
+                    system: `You are a Master Mariner Unlimited. Answer ONLY the question asked. Use ONLY this format:
+
+**RULE NUMBER**
+
+Action: One sentence.
+
+Why: One sentence explanation.
+
+[Extra detail if needed]
+
+---
+
+RULES:
+1. START with bold **Rule X** or **Topic**
+2. BLANK LINE after title
+3. Action: label, then ONE sentence
+4. BLANK LINE
+5. Why: label, then ONE sentence
+6. BLANK LINE
+7. Extra context (optional, 2-3 sentences max)
+8. NEVER combine multiple rules in one response
+9. NEVER write walls of text without spacing
+
+EXAMPLE RESPONSE:
+**Rule 14 — Head-on Situation**
+
+Action: Each vessel alters course to starboard (right) to pass port-to-port safely.
+
+Why: Mutual alteration prevents collision and is required by COLREGS Rule 14.
+
+Additional: A head-on situation exists when two power-driven vessels are meeting nearly end-on, so that each sees the other's sternlight and both sidelights. If you see both red and green lights, you're head-on.
+
+---
+
+Warnings to flag with ⚠️ if relevant:
+• Small course changes don't work — alter ≥30°
+• Rule 19 (fog) — no stand-on vessel, both must act
+• Assuming they'll give way kills people
+• Call Master if unsure
+
+ALWAYS state: "The OOW holds final authority — this is advisory only."`,
+                    messages: [
+                        { role: 'user', content: message }
+                    ]
+                })
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(`Claude API Error: ${error.error?.message || response.status}`);
+            }
+
+            const data = await response.json();
+            if (!data.content || !Array.isArray(data.content) || data.content.length === 0) {
+                throw new Error('Claude API: Invalid response format - no content');
+            }
+            if (!data.content[0].text) {
+                throw new Error('Claude API: Response missing text field');
+            }
+            return data.content[0].text;
+        }
+
+        async function callOpenAIAPI(message, model, apiKey) {
+            const response = await fetch('https://api.openai.com/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${apiKey}`,
+                },
+                body: JSON.stringify({
+                    model: model || 'gpt-4o',
+                    max_tokens: 1024,
+                    system: `You are a Master Mariner Unlimited. Answer ONLY the question asked. Use ONLY this format:
+
+**RULE NUMBER**
+
+Action: One sentence.
+
+Why: One sentence explanation.
+
+[Extra detail if needed]
+
+---
+
+RULES:
+1. START with bold **Rule X** or **Topic**
+2. BLANK LINE after title
+3. Action: label, then ONE sentence
+4. BLANK LINE
+5. Why: label, then ONE sentence
+6. BLANK LINE
+7. Extra context (optional, 2-3 sentences max)
+8. NEVER combine multiple rules in one response
+9. NEVER write walls of text without spacing
+
+EXAMPLE RESPONSE:
+**Rule 14 — Head-on Situation**
+
+Action: Each vessel alters course to starboard (right) to pass port-to-port safely.
+
+Why: Mutual alteration prevents collision and is required by COLREGS Rule 14.
+
+Additional: A head-on situation exists when two power-driven vessels are meeting nearly end-on, so that each sees the other's sternlight and both sidelights. If you see both red and green lights, you're head-on.
+
+---
+
+Warnings to flag with ⚠️ if relevant:
+• Small course changes don't work — alter ≥30°
+• Rule 19 (fog) — no stand-on vessel, both must act
+• Assuming they'll give way kills people
+• Call Master if unsure
+
+ALWAYS state: "The OOW holds final authority — this is advisory only."`,
+                    messages: [
+                        { role: 'user', content: message }
+                    ]
+                })
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(`OpenAI API Error: ${error.error?.message || response.status}`);
+            }
+
+            const data = await response.json();
+            if (!data.choices || !Array.isArray(data.choices) || data.choices.length === 0) {
+                throw new Error('OpenAI API: Invalid response - no choices');
+            }
+            if (!data.choices[0].message || !data.choices[0].message.content) {
+                throw new Error('OpenAI API: Response missing content field');
+            }
+            return data.choices[0].message.content;
+        }
+
+        async function callGoogleAPI(message, model, apiKey) {
+            const systemPrompt = `You are a Master Mariner Unlimited (MMU) — expert in COLREGS, navigation, seamanship.
+
+═══════════════════════════════════════════════════════════
+MANDATORY RESPONSE FORMAT — USE FOR EVERY ANSWER
+═══════════════════════════════════════════════════════════
+
+**[RULE NUMBER OR TOPIC TITLE]**
+
+Action: [One clear sentence: what to do]
+
+Why: [One-line explanation tied to collision avoidance or seamanship]
+
+[Additional context, examples, or edge cases if needed]
+
+---
+
+FORMATTING RULES:
+• Bold rule/title with ** at start
+• Blank lines between sections
+• Keep Action and Why concise (max 2 sentences each)
+• Add details only in Additional section
+• Use ⚠️ for warnings about dangerous practices
+
+═══════════════════════════════════════════════════════════
+
+CRITICAL ANTI-PATTERNS (Flag if relevant):
+⚠️ Small course changes (2-5°) — use ≥30° alterations
+⚠️ Restricted visibility (Rule 19) — no stand-on vessel
+⚠️ Considering calling Master? Already too late — call NOW
+⚠️ All means required (sight, hearing, radar, AIS)
+
+QUALITY CHECKLIST:
+✓ Cite COLREGS rule numbers
+✓ State: "OOW holds command responsibility — advisory only"
+✓ Assume user is working seafarer or serious trainee
+✓ Direct, actionable responses — no philosophy
+✓ Flag deadly assumptions (e.g., "assume they'll give way")
+
+Reference: MARITIME_AI_SOUL.md (Popeye ops, 7+ years North Sea)`;
+
+            // Ensure model has "models/" prefix
+            const fullModel = model.startsWith('models/') ? model : `models/${model}`;
+
+            const payload = {
+                contents: [
+                    {
+                        role: 'user',
+                        parts: [
+                            {
+                                text: systemPrompt + '\n\n' + message
+                            }
+                        ]
+                    }
+                ],
+                generationConfig: {
+                    maxOutputTokens: 4096,
+                    temperature: 0.7,
+                }
+            };
+
+            const response = await fetch(
+                `https://generativelanguage.googleapis.com/v1/${fullModel}:generateContent?key=${apiKey}`,
+                {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(payload)
+                }
+            );
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(`Google API Error: ${error.error?.message || response.status}`);
+            }
+
+            const data = await response.json();
+
+            // Handle blocked/safety filtered responses
+            if (data.promptFeedback?.blockReason) {
+                throw new Error(`Google API: Request blocked - ${data.promptFeedback.blockReason}`);
+            }
+
+            if (!data.candidates || !Array.isArray(data.candidates) || data.candidates.length === 0) {
+                throw new Error('Google API: No response generated');
+            }
+
+            const candidate = data.candidates[0];
+
+            // Check if response was blocked
+            if (candidate.finishReason === 'SAFETY') {
+                throw new Error('Google API: Response blocked by safety filter');
+            }
+
+            if (!candidate.content || !candidate.content.parts || !Array.isArray(candidate.content.parts) || candidate.content.parts.length === 0) {
+                throw new Error(`Google API: Invalid response - no content parts (finishReason: ${candidate.finishReason})`);
+            }
+
+            const textPart = candidate.content.parts.find(part => part.text);
+            if (!textPart || !textPart.text) {
+                throw new Error('Google API: Response contains no text');
+            }
+
+            return textPart.text;
+        }
+
+        async function callGroqAPI(message, model, apiKey) {
+            const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${apiKey}`,
+                },
+                body: JSON.stringify({
+                    model: model || 'mixtral-8x7b-32768',
+                    max_tokens: 1024,
+                    system: `You are a Master Mariner Unlimited. Answer ONLY the question asked. Use ONLY this format:
+
+**RULE NUMBER**
+
+Action: One sentence.
+
+Why: One sentence explanation.
+
+[Extra detail if needed]
+
+---
+
+RULES:
+1. START with bold **Rule X** or **Topic**
+2. BLANK LINE after title
+3. Action: label, then ONE sentence
+4. BLANK LINE
+5. Why: label, then ONE sentence
+6. BLANK LINE
+7. Extra context (optional, 2-3 sentences max)
+8. NEVER combine multiple rules in one response
+9. NEVER write walls of text without spacing
+
+EXAMPLE RESPONSE:
+**Rule 14 — Head-on Situation**
+
+Action: Each vessel alters course to starboard (right) to pass port-to-port safely.
+
+Why: Mutual alteration prevents collision and is required by COLREGS Rule 14.
+
+Additional: A head-on situation exists when two power-driven vessels are meeting nearly end-on, so that each sees the other's sternlight and both sidelights. If you see both red and green lights, you're head-on.
+
+---
+
+Warnings to flag with ⚠️ if relevant:
+• Small course changes don't work — alter ≥30°
+• Rule 19 (fog) — no stand-on vessel, both must act
+• Assuming they'll give way kills people
+• Call Master if unsure
+
+ALWAYS state: "The OOW holds final authority — this is advisory only."`,
+                    messages: [
+                        { role: 'user', content: message }
+                    ]
+                })
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(`Groq API Error: ${error.error?.message || response.status}`);
+            }
+
+            const data = await response.json();
+            if (!data.choices || !Array.isArray(data.choices) || data.choices.length === 0) {
+                throw new Error('Groq API: Invalid response - no choices');
+            }
+            if (!data.choices[0].message || !data.choices[0].message.content) {
+                throw new Error('Groq API: Response missing content field');
+            }
+            return data.choices[0].message.content;
+        }
+
+        // === INITIALIZATION ===
+
+        window.onclick = function(event) {
+            const modal = document.getElementById('settings-modal');
+            if (event.target === modal) {
+                modal.style.display = 'none';
+            }
+        };
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadLibraryStats();
+            updateAssistantTabVisibility();
+        });
+    </script>
+</body>
+</html>

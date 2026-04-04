@@ -58,7 +58,9 @@ def relative_bearing(own_hdg: float, target_bearing: float) -> float:
     return (target_bearing - own_hdg) % 360
 
 
-def classify_encounter(own_cog: float, target_cog: float, rel_bearing: float) -> Tuple[str, str, str, str]:
+def classify_encounter(
+    own_cog: float, target_cog: float, rel_bearing: float
+) -> Tuple[str, str, str, str]:
     """Classify vessel encounter per COLREGS Rules 13-15.
 
     Determines whether own vessel is stand-on (maintain course/speed) or
@@ -102,33 +104,61 @@ def classify_encounter(own_cog: float, target_cog: float, rel_bearing: float) ->
 
     # Overtaking — Rule 13: target abaft the beam
     if 112.5 < rel_bearing < 247.5:
-        return ("overtaking", "stand-on", "Rule 13",
-                "Maintain course and speed. Target is overtaking you.")
+        return (
+            "overtaking",
+            "stand-on",
+            "Rule 13",
+            "Maintain course and speed. Target is overtaking you.",
+        )
 
     # Check if we are overtaking target
     target_rel = relative_bearing(target_cog, (rel_bearing + own_cog + 180) % 360)
     if 112.5 < target_rel < 247.5:
-        return ("overtaking", "give-way", "Rule 13",
-                "You are overtaking. Keep clear. Any alteration permitted.")
+        return (
+            "overtaking",
+            "give-way",
+            "Rule 13",
+            "You are overtaking. Keep clear. Any alteration permitted.",
+        )
 
     # Head-on — Rule 14: courses roughly reciprocal, target ahead
     if course_diff > 170 and (rel_bearing < 6 or rel_bearing > 354):
-        return ("head-on", "give-way", "Rule 14",
-                "HEAD-ON. Both vessels alter course to STARBOARD.")
+        return (
+            "head-on",
+            "give-way",
+            "Rule 14",
+            "HEAD-ON. Both vessels alter course to STARBOARD.",
+        )
 
     # Crossing — Rules 15/17
     if rel_bearing < 112.5:
-        return ("crossing", "give-way", "Rule 15",
-                "Target on STARBOARD. You are GIVE-WAY. Alter course to STARBOARD "
-                "or reduce speed. Avoid crossing ahead.")
+        return (
+            "crossing",
+            "give-way",
+            "Rule 15",
+            "Target on STARBOARD. You are GIVE-WAY. Alter course to STARBOARD "
+            "or reduce speed. Avoid crossing ahead.",
+        )
     else:
-        return ("crossing", "stand-on", "Rule 17",
-                "Target on PORT. You are STAND-ON. Maintain course and speed. "
-                "Be ready to act if give-way vessel doesn't.")
+        return (
+            "crossing",
+            "stand-on",
+            "Rule 17",
+            "Target on PORT. You are STAND-ON. Maintain course and speed. "
+            "Be ready to act if give-way vessel doesn't.",
+        )
 
 
-def compute_cpa_tcpa(own_lat: float, own_lon: float, own_cog: float, own_sog: float,
-                     tgt_lat: float, tgt_lon: float, tgt_cog: float, tgt_sog: float) -> Tuple[float, float, float, float]:
+def compute_cpa_tcpa(
+    own_lat: float,
+    own_lon: float,
+    own_cog: float,
+    own_sog: float,
+    tgt_lat: float,
+    tgt_lon: float,
+    tgt_cog: float,
+    tgt_sog: float,
+) -> Tuple[float, float, float, float]:
     """Compute Closest Point of Approach (CPA) and Time to CPA (TCPA).
 
     Uses vector geometry to find the point where two vessels come closest and
@@ -176,6 +206,7 @@ def compute_cpa_tcpa(own_lat: float, own_lon: float, own_cog: float, own_sog: fl
         >>> print(f"CPA: {cpa} nm in {tcpa} min")
         CPA: 0.0 nm in 3.0 min
     """
+
     def to_xy(lat, lon, ref_lat, ref_lon):
         """Convert lat/lon to Cartesian XY in nautical miles (relative to ref)."""
         x = (lon - ref_lon) * 60 * math.cos(math.radians(ref_lat))
@@ -275,9 +306,10 @@ def range_nm(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     """
     dlat = math.radians(lat2 - lat1)
     dlon = math.radians(lon2 - lon1)
-    a = (math.sin(dlat / 2) ** 2 +
-         math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) *
-         math.sin(dlon / 2) ** 2)
+    a = (
+        math.sin(dlat / 2) ** 2
+        + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlon / 2) ** 2
+    )
     c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
     return round(c * 3440.065, 2)
 
